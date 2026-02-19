@@ -10,6 +10,18 @@ SheepCat is designed to help people keep track of their work activities in a non
 
 ## ✨ Features
 
+### Menu-Based Navigation
+- Easy-to-use menu system for switching between different pages
+- Task Tracker page for logging work activities
+- Review Log page for viewing and editing past entries
+
+### Work Log Review & Editing
+- Review all tasks for any date
+- Update task resolved status with a single click
+- Double-click tasks to quickly toggle their status
+- Bulk update multiple tasks at once
+- Filter and search through your work history
+
 ### Gentle Interval Check-ins
 - Periodically asks you what task you've been working on at customizable intervals
 - Non-disruptive notifications that respect your focus time
@@ -25,6 +37,11 @@ SheepCat is designed to help people keep track of their work activities in a non
 - Tracks all tasks and summaries throughout your work session
 - Consolidates interval summaries into a cohesive daily report
 - Maintains a historical log of your activities
+
+### Future-Proof Architecture
+- Modular repository pattern for data storage
+- Easy migration to SQL, NoSQL, or API-based storage
+- Designed for scalability and multi-user scenarios
 
 ## 🎯 Use Cases
 
@@ -50,6 +67,7 @@ For detailed installation and setup instructions, see **[SETUP.md](SETUP.md)**.
 
 - **[SETUP.md](SETUP.md)** - Complete installation and setup instructions
 - **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Quick command reference and common tasks
+- **[NEW_FEATURES.md](NEW_FEATURES.md)** - Guide to the menu system, review page, and data architecture
 
 ## 🤖 LLM Configuration
 
