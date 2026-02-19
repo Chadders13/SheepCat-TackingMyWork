@@ -9,6 +9,7 @@ import datetime
 import os
 
 from settings_manager import SettingsManager, DEFAULT_SETTINGS, DATE_FORMAT_MAP, PROVIDER_DEFAULT_URLS
+import theme
 
 
 # AI providers available in the dropdown
@@ -40,7 +41,7 @@ class SettingsPage(tk.Frame):
             settings_manager: SettingsManager instance
             on_settings_changed: Optional callback invoked after settings are saved
         """
-        super().__init__(parent)
+        super().__init__(parent, bg=theme.WINDOW_BG)
         self.settings_manager = settings_manager
         self.on_settings_changed = on_settings_changed
         self._create_widgets()
@@ -48,15 +49,18 @@ class SettingsPage(tk.Frame):
 
     def _create_widgets(self):
         """Build all UI widgets."""
-        tk.Label(self, text="Settings", font=("Arial", 16, "bold")).pack(pady=15)
+        tk.Label(
+            self, text="Settings",
+            font=theme.FONT_H2, bg=theme.WINDOW_BG, fg=theme.TEXT,
+        ).pack(pady=15)
 
         # Scrollable content area
-        outer = tk.Frame(self)
+        outer = tk.Frame(self, bg=theme.WINDOW_BG)
         outer.pack(fill='both', expand=True)
 
-        canvas = tk.Canvas(outer)
+        canvas = tk.Canvas(outer, bg=theme.WINDOW_BG, highlightthickness=0)
         scrollbar = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
-        form = tk.Frame(canvas)
+        form = tk.Frame(canvas, bg=theme.WINDOW_BG)
 
         form.bind(
             "<Configure>",
@@ -69,82 +73,128 @@ class SettingsPage(tk.Frame):
         scrollbar.pack(side="right", fill="y")
 
         # ---- AI Provider Settings ----
-        tk.Label(form, text="AI Provider Settings", font=("Arial", 12, "bold")).grid(
-            row=0, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
+        tk.Label(
+            form, text="AI Provider Settings",
+            font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
+        ).grid(row=0, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
 
-        tk.Label(form, text="AI Provider:", font=("Arial", 10)).grid(
-            row=1, column=0, sticky='w', padx=15, pady=5)
+        tk.Label(
+            form, text="AI Provider:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=1, column=0, sticky='w', padx=15, pady=5)
         self.provider_var = tk.StringVar()
         self.provider_combo = ttk.Combobox(
             form, textvariable=self.provider_var, values=AI_PROVIDERS, width=27, state='readonly')
         self.provider_combo.grid(row=1, column=1, columnspan=2, sticky='w', padx=5, pady=5)
         self.provider_combo.bind('<<ComboboxSelected>>', self._on_provider_changed)
 
-        tk.Label(form, text="API URL:", font=("Arial", 10)).grid(
-            row=2, column=0, sticky='w', padx=15, pady=5)
+        tk.Label(
+            form, text="API URL:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=2, column=0, sticky='w', padx=15, pady=5)
         self.api_url_var = tk.StringVar()
-        tk.Entry(form, textvariable=self.api_url_var, width=50).grid(
-            row=2, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        tk.Entry(
+            form, textvariable=self.api_url_var, width=50,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).grid(row=2, column=1, columnspan=2, sticky='w', padx=5, pady=5)
 
-        tk.Label(form, text="Model:", font=("Arial", 10)).grid(
-            row=3, column=0, sticky='w', padx=15, pady=5)
+        tk.Label(
+            form, text="Model:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=3, column=0, sticky='w', padx=15, pady=5)
         self.model_var = tk.StringVar()
-        tk.Entry(form, textvariable=self.model_var, width=30).grid(
-            row=3, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        tk.Entry(
+            form, textvariable=self.model_var, width=30,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).grid(row=3, column=1, columnspan=2, sticky='w', padx=5, pady=5)
 
-        tk.Label(form, text="Request Timeout (seconds):", font=("Arial", 10)).grid(
-            row=4, column=0, sticky='w', padx=15, pady=5)
+        tk.Label(
+            form, text="Request Timeout (seconds):",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=4, column=0, sticky='w', padx=15, pady=5)
         self.llm_timeout_var = tk.StringVar()
-        tk.Entry(form, textvariable=self.llm_timeout_var, width=10).grid(
-            row=4, column=1, sticky='w', padx=5, pady=5)
+        tk.Entry(
+            form, textvariable=self.llm_timeout_var, width=10,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).grid(row=4, column=1, sticky='w', padx=5, pady=5)
 
-        tk.Label(form, text="Max Chunk Size (chars):", font=("Arial", 10)).grid(
-            row=5, column=0, sticky='w', padx=15, pady=5)
+        tk.Label(
+            form, text="Max Chunk Size (chars):",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=5, column=0, sticky='w', padx=15, pady=5)
         self.max_chunk_var = tk.StringVar()
-        tk.Entry(form, textvariable=self.max_chunk_var, width=10).grid(
-            row=5, column=1, sticky='w', padx=5, pady=5)
+        tk.Entry(
+            form, textvariable=self.max_chunk_var, width=10,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).grid(row=5, column=1, sticky='w', padx=5, pady=5)
 
         # ---- Timer Settings ----
-        tk.Label(form, text="Timer Settings", font=("Arial", 12, "bold")).grid(
-            row=6, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
+        tk.Label(
+            form, text="Timer Settings",
+            font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
+        ).grid(row=6, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
 
-        tk.Label(form, text="Check-in Interval (minutes):", font=("Arial", 10)).grid(
-            row=7, column=0, sticky='w', padx=15, pady=5)
+        tk.Label(
+            form, text="Check-in Interval (minutes):",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=7, column=0, sticky='w', padx=15, pady=5)
         self.interval_var = tk.StringVar()
-        tk.Entry(form, textvariable=self.interval_var, width=10).grid(
-            row=7, column=1, sticky='w', padx=5, pady=5)
+        tk.Entry(
+            form, textvariable=self.interval_var, width=10,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).grid(row=7, column=1, sticky='w', padx=5, pady=5)
 
         # ---- Log File Settings ----
-        tk.Label(form, text="Log File Settings", font=("Arial", 12, "bold")).grid(
-            row=8, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
+        tk.Label(
+            form, text="Log File Settings",
+            font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
+        ).grid(row=8, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
 
-        tk.Label(form, text="Log File Directory:", font=("Arial", 10)).grid(
-            row=9, column=0, sticky='w', padx=15, pady=5)
+        tk.Label(
+            form, text="Log File Directory:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=9, column=0, sticky='w', padx=15, pady=5)
         self.log_dir_var = tk.StringVar()
-        dir_frame = tk.Frame(form)
+        dir_frame = tk.Frame(form, bg=theme.WINDOW_BG)
         dir_frame.grid(row=9, column=1, columnspan=2, sticky='w', padx=5, pady=5)
-        tk.Entry(dir_frame, textvariable=self.log_dir_var, width=40).pack(side='left')
-        tk.Button(dir_frame, text="Browse...", command=self._browse_directory).pack(side='left', padx=5)
+        tk.Entry(
+            dir_frame, textvariable=self.log_dir_var, width=40,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).pack(side='left')
+        tk.Button(
+            dir_frame, text="Browse...", command=self._browse_directory,
+            bg=theme.SURFACE_BG, fg=theme.TEXT, relief='flat', cursor='hand2',
+        ).pack(side='left', padx=5)
 
-        tk.Label(form, text="Log File Name (no extension):", font=("Arial", 10)).grid(
-            row=10, column=0, sticky='w', padx=15, pady=5)
+        tk.Label(
+            form, text="Log File Name (no extension):",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=10, column=0, sticky='w', padx=15, pady=5)
         self.log_name_var = tk.StringVar()
-        tk.Entry(form, textvariable=self.log_name_var, width=30).grid(
-            row=10, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        tk.Entry(
+            form, textvariable=self.log_name_var, width=30,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).grid(row=10, column=1, columnspan=2, sticky='w', padx=5, pady=5)
 
-        tk.Label(form, text="Date Format in Filename:", font=("Arial", 10)).grid(
-            row=11, column=0, sticky='w', padx=15, pady=5)
+        tk.Label(
+            form, text="Date Format in Filename:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=11, column=0, sticky='w', padx=15, pady=5)
         self.date_format_var = tk.StringVar()
         self.date_format_combo = ttk.Combobox(
             form, textvariable=self.date_format_var, width=38, state='readonly')
         self.date_format_combo['values'] = [opt[0] for opt in DATE_FORMAT_OPTIONS]
         self.date_format_combo.grid(row=11, column=1, columnspan=2, sticky='w', padx=5, pady=5)
 
-        tk.Label(form, text="Filename Preview:", font=("Arial", 10)).grid(
-            row=12, column=0, sticky='w', padx=15, pady=5)
+        tk.Label(
+            form, text="Filename Preview:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=12, column=0, sticky='w', padx=15, pady=5)
         self.preview_var = tk.StringVar()
-        tk.Label(form, textvariable=self.preview_var, font=("Arial", 9), fg="blue").grid(
-            row=12, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        tk.Label(
+            form, textvariable=self.preview_var,
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
+        ).grid(row=12, column=1, columnspan=2, sticky='w', padx=5, pady=5)
 
         # Bind changes to update preview
         self.log_dir_var.trace_add('write', self._update_preview)
@@ -152,15 +202,24 @@ class SettingsPage(tk.Frame):
         self.date_format_combo.bind('<<ComboboxSelected>>', lambda e: self._update_preview())
 
         # ---- Buttons ----
-        button_frame = tk.Frame(self)
+        button_frame = tk.Frame(self, bg=theme.WINDOW_BG)
         button_frame.pack(pady=15)
 
-        tk.Button(button_frame, text="Save Settings", command=self._save_settings,
-                  bg="green", fg="white", width=15).pack(side='left', padx=5)
-        tk.Button(button_frame, text="Reset to Defaults", command=self._reset_defaults,
-                  bg="gray", fg="white", width=15).pack(side='left', padx=5)
+        tk.Button(
+            button_frame, text="Save Settings", command=self._save_settings,
+            bg=theme.GREEN, fg=theme.WINDOW_BG,
+            font=theme.FONT_BODY, width=15, relief='flat', cursor='hand2',
+        ).pack(side='left', padx=5)
+        tk.Button(
+            button_frame, text="Reset to Defaults", command=self._reset_defaults,
+            bg=theme.SURFACE_BG, fg=theme.TEXT,
+            font=theme.FONT_BODY, width=15, relief='flat', cursor='hand2',
+        ).pack(side='left', padx=5)
 
-        self.status_label = tk.Label(self, text="", font=("Arial", 9), fg="blue")
+        self.status_label = tk.Label(
+            self, text="",
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        )
         self.status_label.pack(pady=5)
 
     # ------------------------------------------------------------------
@@ -257,11 +316,11 @@ class SettingsPage(tk.Frame):
         sm.set("log_file_date_format", self._get_date_format_value())
 
         if sm.save():
-            self.status_label.config(text="Settings saved successfully!", fg="green")
+            self.status_label.config(text="Settings saved successfully!", fg=theme.GREEN)
             if self.on_settings_changed:
                 self.on_settings_changed()
         else:
-            self.status_label.config(text="Error saving settings.", fg="red")
+            self.status_label.config(text="Error saving settings.", fg=theme.RED)
 
     def _reset_defaults(self):
         """Reset all settings to their default values after confirmation."""
@@ -269,7 +328,7 @@ class SettingsPage(tk.Frame):
             for key, value in DEFAULT_SETTINGS.items():
                 self.settings_manager.set(key, value)
             self._load_settings()
-            self.status_label.config(text="Settings reset to defaults.", fg="blue")
+            self.status_label.config(text="Settings reset to defaults.", fg=theme.PRIMARY)
 
     def refresh(self):
         """Reload settings from the manager (called when navigating to this page)."""
