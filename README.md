@@ -108,7 +108,7 @@ SheepCat is built with neurodivergent users in mind, offering:
 
 This project is licensed under the AGPLv3. It is free for personal use and open-source development. See the [LICENSE](LICENSE) file for details.
 
-**Commercial Use**: If you wish to use this software within a commercial environment or without the restrictions of the AGPL, please contact [chadwicksys13@gmail.com](mailto:chadwicksys13@gmail.com) for a Commercial License.
+**Commercial Use**: If you wish to use this software within a commercial environment or without the restrictions of the AGPL, you can instantly purchase a single commercial license at [https://chadders13.github.io/SheepCat-TrackingMyWork-Website/](https://chadders13.github.io/SheepCat-TrackingMyWork-Website/). For larger volumes, please contact [chadwicksys13@gmail.com](mailto:chadwicksys13@gmail.com).
 
 ## 🤝 Contributing
 
