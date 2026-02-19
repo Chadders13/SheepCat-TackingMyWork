@@ -55,7 +55,9 @@ SheepCat is built with neurodivergent users in mind, offering:
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the AGPLv3. It is free for personal use and open-source development. See the [LICENSE](LICENSE) file for details.
+
+**Commercial Use**: If you wish to use this software within a commercial environment or without the restrictions of the AGPL, please contact [chadwicksys13@gmail.com](mailto:chadwicksys13@gmail.com) for a Commercial License.
 
 ## 🤝 Contributing
 
