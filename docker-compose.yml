@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  sheepcat:
+    build: .
+    container_name: sheepcat-tracker
+    environment:
+      # Display for GUI - adjust based on your system
+      - DISPLAY=${DISPLAY:-:0}
+    volumes:
+      # X11 socket for GUI display (Linux)
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      # Persist work log outside container
+      - ./work_log.csv:/app/work_log.csv
+    # Use host network to access Ollama on localhost:11434
+    network_mode: host
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+# Note: Before running, ensure:
+# 1. Ollama is installed and running on the host machine
+# 2. X11 forwarding is configured (Linux: run 'xhost +local:docker')
+# 3. For Windows/macOS, see SETUP.md for X server configuration
