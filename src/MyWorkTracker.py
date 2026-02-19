@@ -7,6 +7,8 @@ import platform
 import requests
 import json
 import threading
+from csv_data_repository import CSVDataRepository
+from review_log_page import ReviewLogPage
  
 # --- CONFIGURATION ---
 OLLAMA_URL = "http://localhost:11434/api/generate"
@@ -21,7 +23,11 @@ class WorkLoggerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("M Work - Task tracker")
-        self.root.geometry("400x280")
+        self.root.geometry("800x600")
+        
+        # Initialize data repository
+        self.data_repository = CSVDataRepository(LOG_FILE)
+        self.data_repository.initialize()
         
         # State variables
         self.is_running = False
@@ -31,36 +37,90 @@ class WorkLoggerApp:
         self.timer_id = None
         self.countdown_id = None
         self.next_checkin_time = None
- 
+        
+        # Create menu bar
+        self._create_menu()
+        
+        # Create main container for pages
+        self.container = tk.Frame(root)
+        self.container.pack(fill='both', expand=True)
+        
+        # Create pages
+        self.pages = {}
+        self._create_tracker_page()
+        self._create_review_page()
+        
+        # Show tracker page by default
+        self.show_page("tracker")
+    
+    def _create_menu(self):
+        """Create the menu bar"""
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+        
+        # Pages menu
+        pages_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Pages", menu=pages_menu)
+        pages_menu.add_command(label="Task Tracker", command=lambda: self.show_page("tracker"))
+        pages_menu.add_command(label="Review Work Log", command=lambda: self.show_page("review"))
+        pages_menu.add_separator()
+        pages_menu.add_command(label="Exit", command=self.root.quit)
+    
+    def _create_tracker_page(self):
+        """Create the tracker page (original functionality)"""
+        page = tk.Frame(self.container)
+        self.pages["tracker"] = page
+        
         # UI Elements
-        self.status_label = tk.Label(root, text="Ready to track", font=("Arial", 12))
-        self.status_label.pack(pady=20)
- 
-        self.countdown_label = tk.Label(root, text="", font=("Arial", 10, "bold"), fg="blue")
-        self.countdown_label.pack(pady=5)
- 
-        self.info_label = tk.Label(root, text=f"Model: {OLLAMA_MODEL}", font=("Arial", 8), fg="gray")
-        self.info_label.pack(pady=0)
- 
-        self.btn_start = tk.Button(root, text="Start Day", command=self.start_tracking, bg="green", fg="white", width=20)
-        self.btn_start.pack(pady=5)
- 
-        self.btn_add_task = tk.Button(root, text="Add Task", command=self.add_task, bg="blue", fg="white", state=tk.DISABLED, width=20)
-        self.btn_add_task.pack(pady=5)
- 
-        self.btn_stop = tk.Button(root, text="Stop / End Day", command=self.stop_tracking, bg="red", fg="white", state=tk.DISABLED, width=20)
-        self.btn_stop.pack(pady=5)
- 
-        # Initialize CSV
-        self.init_csv()
- 
-    def init_csv(self):
-        if not os.path.exists(LOG_FILE):
-            with open(LOG_FILE, mode='w', newline='', encoding='utf-8') as file:
-                writer = csv.writer(file)
-                # Added 'AI Summary' and 'Resolved' columns
-                writer.writerow(["Start Time", "End Time", "Duration (Min)", "Ticket", "Title", "System Info", "AI Summary", "Resolved"])
- 
+        status_label = tk.Label(page, text="Ready to track", font=("Arial", 12))
+        status_label.pack(pady=20)
+        self.status_label = status_label
+
+        countdown_label = tk.Label(page, text="", font=("Arial", 10, "bold"), fg="blue")
+        countdown_label.pack(pady=5)
+        self.countdown_label = countdown_label
+
+        info_label = tk.Label(page, text=f"Model: {OLLAMA_MODEL}", font=("Arial", 8), fg="gray")
+        info_label.pack(pady=0)
+        self.info_label = info_label
+
+        btn_start = tk.Button(page, text="Start Day", command=self.start_tracking, bg="green", fg="white", width=20)
+        btn_start.pack(pady=5)
+        self.btn_start = btn_start
+
+        btn_add_task = tk.Button(page, text="Add Task", command=self.add_task, bg="blue", fg="white", state=tk.DISABLED, width=20)
+        btn_add_task.pack(pady=5)
+        self.btn_add_task = btn_add_task
+
+        btn_stop = tk.Button(page, text="Stop / End Day", command=self.stop_tracking, bg="red", fg="white", state=tk.DISABLED, width=20)
+        btn_stop.pack(pady=5)
+        self.btn_stop = btn_stop
+    
+    def _create_review_page(self):
+        """Create the review log page"""
+        page = ReviewLogPage(self.container, self.data_repository)
+        self.pages["review"] = page
+    
+    def show_page(self, page_name):
+        """
+        Show the specified page.
+        
+        Args:
+            page_name: Name of the page to show ("tracker" or "review")
+        """
+        # Hide all pages
+        for page in self.pages.values():
+            page.pack_forget()
+        
+        # Show selected page
+        if page_name in self.pages:
+            page = self.pages[page_name]
+            page.pack(fill='both', expand=True)
+            
+            # Refresh the page if it has a refresh method
+            if hasattr(page, 'refresh'):
+                page.refresh()
+    
     def get_system_context(self):
         return f"OS: {platform.system()} | Node: {platform.node()}"
  
@@ -160,48 +220,33 @@ class WorkLoggerApp:
         tickets = set()
         tasks = []
         
-        try:
-            with open(LOG_FILE, mode='r', encoding='utf-8') as file:
-                reader = csv.DictReader(file)
-                for row in reader:
-                    row_time_str = row.get('Start Time', '')
-                    if not row_time_str:
-                        continue
-                    
-                    try:
-                        row_time = datetime.datetime.strptime(row_time_str, "%Y-%m-%d %H:%M:%S")
-                    except ValueError:
-                        continue
-                    
-                    # Only include rows from today's session (after start_time)
-                    if row_time >= start_time:
-                        ai_summary = row.get('AI Summary', '').strip()
-                        title = row.get('Title', '').strip()
-                        ticket = row.get('Ticket', '').strip()
-                        
-                        # Collect summaries (skip markers and empty summaries)
-                        if ai_summary and 'DAY STARTED' not in title and 'DAY ENDED' not in title:
-                            summaries.append(ai_summary)
-                        
-                        # Collect tickets
-                        if ticket:
-                            # Split comma-separated tickets
-                            for t in ticket.split(','):
-                                t = t.strip()
-                                if t:
-                                    tickets.add(t)
-                        
-                        # Collect task info
-                        if title and 'DAY STARTED' not in title and 'DAY ENDED' not in title:
-                            tasks.append({
-                                'title': title,
-                                'ticket': ticket,
-                                'duration': row.get('Duration (Min)', '0')
-                            })
-        except FileNotFoundError:
-            pass
-        except Exception as e:
-            print(f"Error reading summaries: {e}")
+        # Use repository to get tasks since start_time
+        rows = self.data_repository.get_tasks_since(start_time)
+        
+        for row in rows:
+            ai_summary = row.get('AI Summary', '').strip()
+            title = row.get('Title', '').strip()
+            ticket = row.get('Ticket', '').strip()
+            
+            # Collect summaries (skip markers and empty summaries)
+            if ai_summary and 'DAY STARTED' not in title and 'DAY ENDED' not in title:
+                summaries.append(ai_summary)
+            
+            # Collect tickets
+            if ticket:
+                # Split comma-separated tickets
+                for t in ticket.split(','):
+                    t = t.strip()
+                    if t:
+                        tickets.add(t)
+            
+            # Collect task info
+            if title and 'DAY STARTED' not in title and 'DAY ENDED' not in title:
+                tasks.append({
+                    'title': title,
+                    'ticket': ticket,
+                    'duration': row.get('Duration (Min)', '0')
+                })
         
         return {
             'summaries': summaries,
@@ -455,26 +500,23 @@ class WorkLoggerApp:
         
         resolved = "Yes" if task_details.get('resolved', False) else "No"
 
-        # Write each ticket row immediately
+        # Write each ticket row immediately using repository
         for ticket in tickets:
-            row = [
-                task_time.strftime("%Y-%m-%d %H:%M:%S"),
-                task_time.strftime("%Y-%m-%d %H:%M:%S"),
-                round(duration, 2),
-                ticket,
-                task_details.get('title'),
-                task_details.get('system_info'),
-                ai_summary,
-                resolved
-            ]
-            try:
-                with open(LOG_FILE, mode='a', newline='', encoding='utf-8') as file:
-                    writer = csv.writer(file)
-                    writer.writerow(row)
-                    file.flush()
-                    print(f"Task logged: {row}")
-            except Exception as e:
-                print(f"CSV Error: {e}")
+            task_data = {
+                'start_time': task_time.strftime("%Y-%m-%d %H:%M:%S"),
+                'end_time': task_time.strftime("%Y-%m-%d %H:%M:%S"),
+                'duration': round(duration, 2),
+                'ticket': ticket,
+                'title': task_details.get('title'),
+                'system_info': task_details.get('system_info'),
+                'ai_summary': ai_summary,
+                'resolved': resolved
+            }
+            
+            if self.data_repository.log_task(task_data):
+                print(f"Task logged: {task_data}")
+            else:
+                print(f"Failed to log task: {task_data}")
  
     def hourly_checkin(self):
         if not self.is_running: return
@@ -520,26 +562,22 @@ class WorkLoggerApp:
         
         ticket_summary = ", ".join(all_tickets) if all_tickets else "Multiple"
         
-        # Log the hourly summary
-        row = [
-            self.hour_start_time.strftime("%Y-%m-%d %H:%M:%S"),
-            end_time.strftime("%Y-%m-%d %H:%M:%S"),
-            round(total_duration, 2),
-            ticket_summary,
-            f"HOURLY SUMMARY ({len(self.hourly_tasks)} tasks)",
-            self.get_system_context(),
-            hourly_summary,
-            ""  # Resolved column
-        ]
+        # Log the hourly summary using repository
+        task_data = {
+            'start_time': self.hour_start_time.strftime("%Y-%m-%d %H:%M:%S"),
+            'end_time': end_time.strftime("%Y-%m-%d %H:%M:%S"),
+            'duration': round(total_duration, 2),
+            'ticket': ticket_summary,
+            'title': f"HOURLY SUMMARY ({len(self.hourly_tasks)} tasks)",
+            'system_info': self.get_system_context(),
+            'ai_summary': hourly_summary,
+            'resolved': ""
+        }
         
-        try:
-            with open(LOG_FILE, mode='a', newline='', encoding='utf-8') as file:
-                writer = csv.writer(file)
-                writer.writerow(row)
-                file.flush()
-                print(f"Hourly summary logged: {row}")
-        except Exception as e:
-            print(f"CSV Error: {e}")
+        if self.data_repository.log_task(task_data):
+            print(f"Hourly summary logged")
+        else:
+            print(f"Failed to log hourly summary")
  
     def stop_tracking(self):
         if self.is_running:
@@ -592,25 +630,21 @@ class WorkLoggerApp:
         """Save the end-of-day summary to the CSV file"""
         ticket_list = ", ".join(tickets) if tickets else "All"
         
-        row = [
-            self.session_start_time.strftime("%Y-%m-%d %H:%M:%S") if self.session_start_time else "",
-            end_time.strftime("%Y-%m-%d %H:%M:%S"),
-            0,  # Duration not applicable for day summary
-            ticket_list,
-            "END OF DAY SUMMARY",
-            self.get_system_context(),
-            summary,
-            ""  # Resolved column
-        ]
+        task_data = {
+            'start_time': self.session_start_time.strftime("%Y-%m-%d %H:%M:%S") if self.session_start_time else "",
+            'end_time': end_time.strftime("%Y-%m-%d %H:%M:%S"),
+            'duration': 0,  # Duration not applicable for day summary
+            'ticket': ticket_list,
+            'title': "END OF DAY SUMMARY",
+            'system_info': self.get_system_context(),
+            'ai_summary': summary,
+            'resolved': ""
+        }
         
-        try:
-            with open(LOG_FILE, mode='a', newline='', encoding='utf-8') as file:
-                writer = csv.writer(file)
-                writer.writerow(row)
-                file.flush()
-                print(f"Day summary saved: {len(summary)} characters")
-        except Exception as e:
-            print(f"Error saving day summary: {e}")
+        if self.data_repository.log_task(task_data):
+            print(f"Day summary saved: {len(summary)} characters")
+        else:
+            print(f"Error saving day summary")
  
     def finalize_stop_ui(self):
         self.is_running = False
@@ -651,24 +685,21 @@ class WorkLoggerApp:
  
     def log_day_marker(self, timestamp, marker_text):
         """Log a special row for day start/end"""
-        try:
-            with open(LOG_FILE, mode='a', newline='', encoding='utf-8') as file:
-                writer = csv.writer(file)
-                row = [
-                    timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-                    timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-                    0,
-                    "",
-                    marker_text,
-                    self.get_system_context(),
-                    "",
-                    ""  # Resolved column
-                ]
-                writer.writerow(row)
-                file.flush()  # Ensure immediate save
-                print(f"Day marker logged: {marker_text}")
-        except Exception as e:
-            print(f"CSV Error: {e}")
+        task_data = {
+            'start_time': timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            'end_time': timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            'duration': 0,
+            'ticket': "",
+            'title': marker_text,
+            'system_info': self.get_system_context(),
+            'ai_summary': "",
+            'resolved': ""
+        }
+        
+        if self.data_repository.log_task(task_data):
+            print(f"Day marker logged: {marker_text}")
+        else:
+            print(f"Failed to log day marker: {marker_text}")
  
 if __name__ == "__main__":
     root = tk.Tk()
