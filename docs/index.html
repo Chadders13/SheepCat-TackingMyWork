@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SheepCat – Tracking My Work</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:   #5b6af0;
+      --primary-d: #3d4dcc;
+      --accent:    #f0a05b;
+      --bg:        #f7f8ff;
+      --card:      #ffffff;
+      --text:      #2d2f45;
+      --muted:     #6b7280;
+      --border:    #e4e7ff;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.85rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-logo { font-size: 1.3rem; font-weight: 700; color: var(--primary); text-decoration: none; }
+    .nav-cta {
+      background: var(--primary);
+      color: #fff;
+      padding: 0.5rem 1.25rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .nav-cta:hover { background: var(--primary-d); }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 5rem 1.5rem 4rem;
+      background: linear-gradient(145deg, #eef0ff 0%, #f7f8ff 60%);
+    }
+    .hero-badge {
+      display: inline-block;
+      background: #e8eaff;
+      color: var(--primary);
+      border-radius: 20px;
+      padding: 0.3rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      letter-spacing: 0.04em;
+    }
+    .hero h1 { font-size: clamp(2rem, 5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1rem; }
+    .hero h1 span { color: var(--primary); }
+    .hero p { font-size: 1.15rem; color: var(--muted); max-width: 600px; margin: 0 auto 2.25rem; }
+    .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      padding: 0.8rem 2rem;
+      border-radius: 10px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-primary:hover { background: var(--primary-d); transform: translateY(-1px); }
+    .btn-outline {
+      border: 2px solid var(--primary);
+      color: var(--primary);
+      padding: 0.8rem 2rem;
+      border-radius: 10px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .btn-outline:hover { background: #eef0ff; }
+
+    /* ── Section wrapper ── */
+    .section { padding: 4.5rem 1.5rem; }
+    .section-inner { max-width: 1080px; margin: 0 auto; }
+    .section-title { font-size: 1.9rem; font-weight: 800; text-align: center; margin-bottom: 0.5rem; }
+    .section-sub { text-align: center; color: var(--muted); margin-bottom: 2.75rem; font-size: 1.05rem; }
+
+    /* ── Feature grid ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.5rem;
+    }
+    .feature-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.75rem 1.5rem;
+      transition: box-shadow 0.2s;
+    }
+    .feature-card:hover { box-shadow: 0 6px 24px rgba(91,106,240,0.12); }
+    .feature-icon { font-size: 2.1rem; margin-bottom: 0.85rem; }
+    .feature-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .feature-card p { color: var(--muted); font-size: 0.95rem; }
+
+    /* ── How it works ── */
+    .steps { display: flex; flex-direction: column; gap: 1.25rem; max-width: 680px; margin: 0 auto; }
+    .step { display: flex; gap: 1.25rem; align-items: flex-start; }
+    .step-num {
+      min-width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      margin-top: 0.15rem;
+    }
+    .step-body h4 { font-weight: 700; margin-bottom: 0.25rem; }
+    .step-body p { color: var(--muted); font-size: 0.95rem; }
+
+    /* ── Who it's for ── */
+    .who-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.25rem;
+      text-align: center;
+    }
+    .who-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem 1rem;
+    }
+    .who-card .icon { font-size: 2rem; margin-bottom: 0.6rem; }
+    .who-card h4 { font-weight: 700; margin-bottom: 0.3rem; }
+    .who-card p { color: var(--muted); font-size: 0.88rem; }
+
+    /* ── CTA band ── */
+    .cta-band {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-d) 100%);
+      color: #fff;
+      text-align: center;
+      padding: 4rem 1.5rem;
+    }
+    .cta-band h2 { font-size: 2rem; font-weight: 800; margin-bottom: 0.75rem; }
+    .cta-band p { font-size: 1.05rem; opacity: 0.88; margin-bottom: 2rem; }
+    .btn-white {
+      background: #fff;
+      color: var(--primary);
+      padding: 0.85rem 2.25rem;
+      border-radius: 10px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-block;
+      transition: opacity 0.2s;
+    }
+    .btn-white:hover { opacity: 0.9; }
+
+    /* ── Pricing preview ── */
+    .pricing-preview {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 1.5rem;
+    }
+    .price-pill {
+      background: rgba(255,255,255,0.15);
+      border: 2px solid rgba(255,255,255,0.4);
+      border-radius: 12px;
+      padding: 1rem 1.75rem;
+      text-align: center;
+      min-width: 180px;
+    }
+    .price-pill .price { font-size: 1.75rem; font-weight: 800; }
+    .price-pill .label { font-size: 0.85rem; opacity: 0.85; }
+
+    /* ── Footer ── */
+    footer {
+      background: #1e2035;
+      color: #9199b5;
+      text-align: center;
+      padding: 2rem 1.5rem;
+      font-size: 0.875rem;
+    }
+    footer a { color: #a5adcf; text-decoration: none; }
+    footer a:hover { color: #fff; }
+    .footer-links { display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 1rem; flex-wrap: wrap; }
+
+    /* ── Utility ── */
+    .alt-bg { background: #f0f1ff; }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav>
+    <a class="nav-logo" href="index.html">🐱 SheepCat</a>
+    <a class="nav-cta" href="payment.html">Get a Licence</a>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-badge">🧠 Neurodivergent-Friendly Productivity</div>
+    <h1>Work smarter,<br /><span>stress less</span> with SheepCat</h1>
+    <p>
+      A gentle task-tracking companion that logs your day, keeps you on track,
+      and generates AI-powered summaries — so you never lose track of what
+      you've accomplished.
+    </p>
+    <div class="hero-actions">
+      <a href="payment.html" class="btn-primary">Get a Licence — from £8.99/yr</a>
+      <a href="#features" class="btn-outline">See What It Does</a>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="section" id="features">
+    <div class="section-inner">
+      <h2 class="section-title">Everything you need to stay on track</h2>
+      <p class="section-sub">
+        Built specifically for people who think differently — SheepCat meets you where you are.
+      </p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">⏰</div>
+          <h3>Gentle Interval Check-ins</h3>
+          <p>Customisable prompts ask what you've been working on, at an interval that suits you — no intrusive alarms.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🤖</div>
+          <h3>AI-Powered Summaries</h3>
+          <p>Your local Ollama LLM turns quick task notes into clear, structured interval and daily summaries.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📋</div>
+          <h3>Work Log Review</h3>
+          <p>Browse any date, update resolved status with one click, or double-click to quickly toggle. Full history at your fingertips.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h3>Fully Local &amp; Private</h3>
+          <p>All data stays on your machine. The LLM runs locally via Ollama — no cloud, no subscriptions to third-party AI services.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🗂️</div>
+          <h3>Session Management</h3>
+          <p>Tracks tasks throughout your entire work session and consolidates them into a comprehensive end-of-day report.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🧩</div>
+          <h3>Modular Architecture</h3>
+          <p>Repository pattern makes it easy to migrate to SQL, NoSQL, or API-based storage as your needs grow.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="section alt-bg" id="how-it-works">
+    <div class="section-inner">
+      <h2 class="section-title">How It Works</h2>
+      <p class="section-sub">Six simple steps from install to insight.</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Install &amp; Launch</h4>
+            <p>Install Python 3.7+, Ollama, and SheepCat. Run <code>python src/MyWorkTracker.py</code> to open the app.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Start a Session</h4>
+            <p>Begin tracking your work day with a single click. SheepCat starts its gentle interval timer.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Interval Prompts</h4>
+            <p>At your chosen interval, a soft notification asks: "What have you been working on?"</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>Quick Task Description</h4>
+            <p>Type a brief description and any references. Takes seconds, not minutes.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <h4>AI Processing</h4>
+            <p>Your local LLM analyses the input and generates a clear summary for that time period.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">6</div>
+          <div class="step-body">
+            <h4>Daily Report</h4>
+            <p>At session end, all interval summaries are consolidated into one comprehensive daily report — perfect for standups or personal reflection.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Who it's for -->
+  <section class="section" id="who">
+    <div class="section-inner">
+      <h2 class="section-title">Built for people who think differently</h2>
+      <p class="section-sub">Anyone who benefits from gentle structure and automated note-taking will love SheepCat.</p>
+      <div class="who-grid">
+        <div class="who-card"><div class="icon">🧠</div><h4>ADHD &amp; Autism</h4><p>Gentle reminders and clear structure reduce cognitive load.</p></div>
+        <div class="who-card"><div class="icon">💼</div><h4>Remote Workers</h4><p>Automatic logs make end-of-day reporting a breeze.</p></div>
+        <div class="who-card"><div class="icon">🎨</div><h4>Creatives</h4><p>Stay in flow — SheepCat captures your progress without breaking your focus.</p></div>
+        <div class="who-card"><div class="icon">📊</div><h4>Team Leads</h4><p>Know exactly what you worked on for every standup and sprint review.</p></div>
+        <div class="who-card"><div class="icon">🎓</div><h4>Students</h4><p>Track study sessions and generate revision summaries automatically.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA band -->
+  <section class="cta-band">
+    <h2>Ready to take control of your day?</h2>
+    <p>Choose the plan that works for you — cancel or switch any time.</p>
+    <div class="pricing-preview">
+      <div class="price-pill">
+        <div class="price">£8.99</div>
+        <div class="label">per year (subscription)</div>
+      </div>
+      <div class="price-pill">
+        <div class="price">£15.99</div>
+        <div class="label">one-off yearly licence</div>
+      </div>
+    </div>
+    <br />
+    <a href="payment.html" class="btn-white">View Pricing &amp; Buy</a>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-links">
+      <a href="index.html">Home</a>
+      <a href="payment.html">Pricing</a>
+      <a href="https://github.com/Chadders13/SheepCat-TrackingMyWork" target="_blank" rel="noopener">GitHub</a>
+      <a href="mailto:chadwicksys13@gmail.com">Contact</a>
+    </div>
+    <p>&copy; 2025 SheepCat. Made with 💙 for the neurodivergent community.</p>
+  </footer>
+
+</body>
+</html>

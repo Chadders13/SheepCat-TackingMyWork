@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SheepCat – Get a Licence</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:   #5b6af0;
+      --primary-d: #3d4dcc;
+      --accent:    #f0a05b;
+      --bg:        #f7f8ff;
+      --card:      #ffffff;
+      --text:      #2d2f45;
+      --muted:     #6b7280;
+      --border:    #e4e7ff;
+      --green:     #16a34a;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.85rem 2rem;
+    }
+    .nav-logo { font-size: 1.3rem; font-weight: 700; color: var(--primary); text-decoration: none; }
+    .nav-back { color: var(--muted); text-decoration: none; font-size: 0.95rem; }
+    .nav-back:hover { color: var(--primary); }
+
+    /* ── Hero ── */
+    .page-hero {
+      text-align: center;
+      padding: 3.5rem 1.5rem 2rem;
+    }
+    .page-hero h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 800; margin-bottom: 0.6rem; }
+    .page-hero p { color: var(--muted); font-size: 1.05rem; max-width: 520px; margin: 0 auto; }
+
+    /* ── Pricing cards ── */
+    .pricing-section {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 1.5rem 3rem;
+    }
+
+    .plans {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.75rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .plan-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 18px;
+      padding: 2rem 1.75rem;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .plan-card:hover { box-shadow: 0 8px 32px rgba(91,106,240,0.14); border-color: var(--primary); }
+    .plan-card.popular {
+      border-color: var(--primary);
+      box-shadow: 0 8px 32px rgba(91,106,240,0.18);
+    }
+    .popular-badge {
+      position: absolute;
+      top: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--primary);
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 0.25rem 1rem;
+      border-radius: 20px;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    .plan-name { font-size: 0.85rem; font-weight: 700; color: var(--primary); letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 0.5rem; }
+    .plan-price { font-size: 2.6rem; font-weight: 800; margin-bottom: 0.2rem; }
+    .plan-price span { font-size: 1.1rem; font-weight: 500; color: var(--muted); }
+    .plan-desc { color: var(--muted); font-size: 0.92rem; margin-bottom: 1.5rem; }
+
+    .plan-features { list-style: none; margin-bottom: 2rem; flex: 1; }
+    .plan-features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      font-size: 0.93rem;
+      margin-bottom: 0.65rem;
+      color: var(--text);
+    }
+    .plan-features li::before { content: "✓"; color: var(--green); font-weight: 700; min-width: 1rem; }
+
+    .btn-pay {
+      display: block;
+      width: 100%;
+      text-align: center;
+      background: var(--primary);
+      color: #fff;
+      padding: 0.9rem 1.5rem;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-pay:hover { background: var(--primary-d); transform: translateY(-1px); }
+    .btn-pay.outline {
+      background: transparent;
+      border: 2px solid var(--primary);
+      color: var(--primary);
+    }
+    .btn-pay.outline:hover { background: #eef0ff; }
+
+    /* ── What's included ── */
+    .included-section {
+      background: #fff;
+      border-top: 1px solid var(--border);
+      padding: 3rem 1.5rem;
+    }
+    .included-inner { max-width: 860px; margin: 0 auto; }
+    .included-inner h2 { font-size: 1.5rem; font-weight: 800; margin-bottom: 1.5rem; text-align: center; }
+    .included-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .included-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      font-size: 0.92rem;
+    }
+    .included-item .icon { font-size: 1.4rem; min-width: 1.4rem; }
+    .included-item p { color: var(--muted); }
+    .included-item strong { display: block; font-weight: 700; color: var(--text); margin-bottom: 0.1rem; }
+
+    /* ── FAQ ── */
+    .faq-section { padding: 3rem 1.5rem; max-width: 720px; margin: 0 auto; }
+    .faq-section h2 { font-size: 1.5rem; font-weight: 800; margin-bottom: 1.5rem; text-align: center; }
+    .faq-item { border-bottom: 1px solid var(--border); padding: 1rem 0; }
+    .faq-item h4 { font-weight: 700; margin-bottom: 0.4rem; }
+    .faq-item p { color: var(--muted); font-size: 0.93rem; }
+
+    /* ── Secure notice ── */
+    .secure-notice {
+      text-align: center;
+      padding: 1.5rem;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .secure-notice span { margin: 0 0.4rem; }
+
+    /* ── Footer ── */
+    footer {
+      background: #1e2035;
+      color: #9199b5;
+      text-align: center;
+      padding: 2rem 1.5rem;
+      font-size: 0.875rem;
+    }
+    footer a { color: #a5adcf; text-decoration: none; }
+    footer a:hover { color: #fff; }
+    .footer-links { display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 1rem; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav>
+    <a class="nav-logo" href="index.html">🐱 SheepCat</a>
+    <a class="nav-back" href="index.html">← Back to home</a>
+  </nav>
+
+  <!-- Hero -->
+  <div class="page-hero">
+    <h1>Choose your SheepCat licence</h1>
+    <p>Simple, transparent pricing. No hidden fees. Full access on both plans.</p>
+  </div>
+
+  <!-- Pricing cards -->
+  <div class="pricing-section">
+    <div class="plans">
+
+      <!-- Plan 1: Annual Subscription -->
+      <div class="plan-card popular">
+        <div class="popular-badge">⭐ MOST POPULAR</div>
+        <div class="plan-name">Annual Subscription</div>
+        <div class="plan-price">£8.99 <span>/ year</span></div>
+        <div class="plan-desc">Renews automatically each year. Cancel any time.</div>
+        <ul class="plan-features">
+          <li>Full access to SheepCat app</li>
+          <li>Gentle interval check-ins</li>
+          <li>AI-powered daily summaries</li>
+          <li>Work log review &amp; editing</li>
+          <li>All future updates included</li>
+          <li>Email support</li>
+          <li>Cancel any time, no lock-in</li>
+        </ul>
+        <!--
+          Replace the href below with your actual Stripe / PayPal subscription link.
+          Example Stripe checkout link: https://buy.stripe.com/your_subscription_link
+        -->
+        <a href="#payment-subscription" class="btn-pay">Subscribe for £8.99/yr</a>
+      </div>
+
+      <!-- Plan 2: One-off Licence -->
+      <div class="plan-card">
+        <div class="plan-name">One-Off Yearly Licence</div>
+        <div class="plan-price">£15.99 <span>once</span></div>
+        <div class="plan-desc">Pay once, use for a full year — no auto-renewal.</div>
+        <ul class="plan-features">
+          <li>Full access to SheepCat app</li>
+          <li>Gentle interval check-ins</li>
+          <li>AI-powered daily summaries</li>
+          <li>Work log review &amp; editing</li>
+          <li>All updates during your licence year</li>
+          <li>Email support</li>
+          <li>No automatic renewal</li>
+        </ul>
+        <!--
+          Replace the href below with your actual Stripe / PayPal one-time payment link.
+          Example Stripe checkout link: https://buy.stripe.com/your_onetime_link
+        -->
+        <a href="#payment-onetime" class="btn-pay outline">Buy One-Off Licence £15.99</a>
+      </div>
+
+    </div>
+
+    <!-- Secure notice -->
+    <div class="secure-notice">
+      <span>🔒 Secure checkout</span>
+      <span>·</span>
+      <span>💳 All major cards accepted</span>
+      <span>·</span>
+      <span>📧 Licence key delivered by email</span>
+    </div>
+  </div>
+
+  <!-- What's included -->
+  <div class="included-section">
+    <div class="included-inner">
+      <h2>Everything included in every licence</h2>
+      <div class="included-grid">
+        <div class="included-item">
+          <div class="icon">⏰</div>
+          <div><strong>Interval Check-ins</strong><p>Customisable prompts at intervals that suit your workflow.</p></div>
+        </div>
+        <div class="included-item">
+          <div class="icon">🤖</div>
+          <div><strong>AI Summaries</strong><p>Local LLM integration via Ollama for private, on-device AI.</p></div>
+        </div>
+        <div class="included-item">
+          <div class="icon">📋</div>
+          <div><strong>Work Log Review</strong><p>Browse, edit, and update your full task history.</p></div>
+        </div>
+        <div class="included-item">
+          <div class="icon">🔒</div>
+          <div><strong>Fully Private</strong><p>All data stays local — nothing is sent to the cloud.</p></div>
+        </div>
+        <div class="included-item">
+          <div class="icon">🔄</div>
+          <div><strong>Free Updates</strong><p>All improvements during your licence period at no extra cost.</p></div>
+        </div>
+        <div class="included-item">
+          <div class="icon">📧</div>
+          <div><strong>Email Support</strong><p>Direct support from the developer at chadwicksys13@gmail.com.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div class="faq-section">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item">
+      <h4>What's the difference between the two plans?</h4>
+      <p>The <strong>Annual Subscription (£8.99/yr)</strong> renews automatically each year — ideal if you want the lowest ongoing price. The <strong>One-Off Yearly Licence (£15.99)</strong> is a single payment with no auto-renewal; you choose whether to renew at the end of the year.</p>
+    </div>
+    <div class="faq-item">
+      <h4>How do I receive my licence?</h4>
+      <p>After a successful payment you'll be redirected to a confirmation page and receive a licence key by email. Enter the key in SheepCat to activate it.</p>
+    </div>
+    <div class="faq-item">
+      <h4>Can I cancel my subscription?</h4>
+      <p>Yes, you can cancel any time from your payment account. You'll retain access until the end of your current billing period.</p>
+    </div>
+    <div class="faq-item">
+      <h4>Do I need an internet connection to use SheepCat?</h4>
+      <p>Once installed, SheepCat runs entirely offline. An internet connection is only needed to download the app and, optionally, to pull Ollama LLM models.</p>
+    </div>
+    <div class="faq-item">
+      <h4>What operating systems are supported?</h4>
+      <p>SheepCat runs on any platform that supports Python 3.7+ and Tkinter — Windows, macOS, and Linux.</p>
+    </div>
+    <div class="faq-item">
+      <h4>I have another question.</h4>
+      <p>Reach out at <a href="mailto:chadwicksys13@gmail.com">chadwicksys13@gmail.com</a> — we're happy to help.</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-links">
+      <a href="index.html">Home</a>
+      <a href="payment.html">Pricing</a>
+      <a href="https://github.com/Chadders13/SheepCat-TrackingMyWork" target="_blank" rel="noopener">GitHub</a>
+      <a href="mailto:chadwicksys13@gmail.com">Contact</a>
+    </div>
+    <p>&copy; 2025 SheepCat. Made with 💙 for the neurodivergent community.</p>
+  </footer>
+
+</body>
+</html>

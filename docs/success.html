@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SheepCat – Payment Successful 🎉</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:   #5b6af0;
+      --primary-d: #3d4dcc;
+      --green:     #16a34a;
+      --green-bg:  #f0fdf4;
+      --green-bd:  #bbf7d0;
+      --bg:        #f7f8ff;
+      --card:      #ffffff;
+      --text:      #2d2f45;
+      --muted:     #6b7280;
+      --border:    #e4e7ff;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.85rem 2rem;
+    }
+    .nav-logo { font-size: 1.3rem; font-weight: 700; color: var(--primary); text-decoration: none; }
+
+    /* ── Main content ── */
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1.5rem;
+    }
+
+    .success-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3rem 2.5rem;
+      max-width: 560px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 8px 40px rgba(91,106,240,0.10);
+    }
+
+    .success-icon {
+      width: 80px;
+      height: 80px;
+      background: var(--green-bg);
+      border: 2px solid var(--green-bd);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      margin: 0 auto 1.5rem;
+    }
+
+    .success-card h1 {
+      font-size: 1.9rem;
+      font-weight: 800;
+      margin-bottom: 0.6rem;
+    }
+
+    .success-card .subtitle {
+      color: var(--muted);
+      font-size: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    /* ── Steps ── */
+    .next-steps {
+      background: #f7f8ff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem 1.75rem;
+      text-align: left;
+      margin-bottom: 2rem;
+    }
+    .next-steps h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--primary);
+      margin-bottom: 1.1rem;
+    }
+    .step-list { list-style: none; }
+    .step-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.9rem;
+      margin-bottom: 0.85rem;
+      font-size: 0.93rem;
+    }
+    .step-list li:last-child { margin-bottom: 0; }
+    .step-num {
+      min-width: 1.7rem;
+      height: 1.7rem;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.78rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 0.1rem;
+    }
+    .step-text strong { display: block; font-weight: 700; margin-bottom: 0.1rem; }
+    .step-text p { color: var(--muted); }
+
+    /* ── Buttons ── */
+    .action-buttons { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+    .btn-primary {
+      flex: 1;
+      min-width: 140px;
+      background: var(--primary);
+      color: #fff;
+      padding: 0.8rem 1.5rem;
+      border-radius: 10px;
+      font-size: 0.97rem;
+      font-weight: 700;
+      text-decoration: none;
+      text-align: center;
+      transition: background 0.2s;
+    }
+    .btn-primary:hover { background: var(--primary-d); }
+    .btn-outline {
+      flex: 1;
+      min-width: 140px;
+      border: 2px solid var(--primary);
+      color: var(--primary);
+      padding: 0.8rem 1.5rem;
+      border-radius: 10px;
+      font-size: 0.97rem;
+      font-weight: 700;
+      text-decoration: none;
+      text-align: center;
+      transition: background 0.2s;
+    }
+    .btn-outline:hover { background: #eef0ff; }
+
+    /* ── Reassurance ── */
+    .reassurance {
+      margin-top: 1.75rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .reassurance a { color: var(--primary); text-decoration: none; }
+    .reassurance a:hover { text-decoration: underline; }
+
+    /* ── Confetti animation (CSS-only) ── */
+    @keyframes fall {
+      0%   { transform: translateY(-20px) rotate(0deg);   opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+    .confetti-wrapper {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      height: 100vh;
+      z-index: 999;
+    }
+    .confetti-piece {
+      position: absolute;
+      top: -20px;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      animation: fall linear forwards;
+    }
+
+    /* ── Footer ── */
+    footer {
+      background: #1e2035;
+      color: #9199b5;
+      text-align: center;
+      padding: 1.5rem 1.5rem;
+      font-size: 0.875rem;
+    }
+    footer a { color: #a5adcf; text-decoration: none; }
+    footer a:hover { color: #fff; }
+    .footer-links { display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 0.75rem; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+
+  <!-- Confetti (CSS-only, appears for ~3 s) -->
+  <div class="confetti-wrapper" id="confetti" aria-hidden="true"></div>
+
+  <!-- Nav -->
+  <nav>
+    <a class="nav-logo" href="index.html">🐱 SheepCat</a>
+  </nav>
+
+  <!-- Main -->
+  <main>
+    <div class="success-card">
+      <div class="success-icon">✅</div>
+      <h1>Payment successful!</h1>
+      <p class="subtitle">
+        Thank you for getting SheepCat. Your licence is on its way — check your inbox.
+      </p>
+
+      <div class="next-steps">
+        <h3>What happens next</h3>
+        <ol class="step-list">
+          <li>
+            <div class="step-num">1</div>
+            <div class="step-text">
+              <strong>Check your email</strong>
+              <p>Your licence key and download link will arrive within a few minutes.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">2</div>
+            <div class="step-text">
+              <strong>Download &amp; install SheepCat</strong>
+              <p>Follow the instructions in the email to download and set up the app.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">3</div>
+            <div class="step-text">
+              <strong>Activate your licence</strong>
+              <p>Enter your key when prompted the first time you launch SheepCat.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">4</div>
+            <div class="step-text">
+              <strong>Start tracking</strong>
+              <p>Run <code>python src/MyWorkTracker.py</code> and begin your first session!</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+
+      <div class="action-buttons">
+        <a href="https://github.com/Chadders13/SheepCat-TrackingMyWork" class="btn-primary" target="_blank" rel="noopener">
+          Download from GitHub
+        </a>
+        <a href="index.html" class="btn-outline">Back to home</a>
+      </div>
+
+      <p class="reassurance">
+        Didn't receive an email? Check your spam folder or
+        <a href="mailto:chadwicksys13@gmail.com">contact us</a>.
+      </p>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-links">
+      <a href="index.html">Home</a>
+      <a href="payment.html">Pricing</a>
+      <a href="https://github.com/Chadders13/SheepCat-TrackingMyWork" target="_blank" rel="noopener">GitHub</a>
+      <a href="mailto:chadwicksys13@gmail.com">Contact</a>
+    </div>
+    <p>&copy; 2025 SheepCat. Made with 💙 for the neurodivergent community.</p>
+  </footer>
+
+  <script>
+    // Lightweight confetti burst on page load
+    (function () {
+      var wrapper = document.getElementById('confetti');
+      var colors = ['#5b6af0', '#f0a05b', '#34d399', '#f472b6', '#facc15', '#60a5fa'];
+      var total = 60;
+      for (var i = 0; i < total; i++) {
+        var el = document.createElement('div');
+        el.className = 'confetti-piece';
+        el.style.left = Math.random() * 100 + 'vw';
+        el.style.background = colors[Math.floor(Math.random() * colors.length)];
+        el.style.width  = (8 + Math.random() * 8) + 'px';
+        el.style.height = (8 + Math.random() * 8) + 'px';
+        el.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+        var dur = (1.5 + Math.random() * 2).toFixed(2) + 's';
+        var delay = (Math.random() * 1.2).toFixed(2) + 's';
+        el.style.animationDuration = dur;
+        el.style.animationDelay = delay;
+        wrapper.appendChild(el);
+      }
+      // Remove after animations finish
+      setTimeout(function () { wrapper.remove(); }, 4000);
+    }());
+  </script>
+
+</body>
+</html>
