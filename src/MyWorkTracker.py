@@ -9,15 +9,8 @@ import json
 import threading
 from csv_data_repository import CSVDataRepository
 from review_log_page import ReviewLogPage
- 
-# --- CONFIGURATION ---
-OLLAMA_URL = "http://localhost:11434/api/generate"
-# Swap this to "nordic-text" or "deepseek-coder" etc. as per your ollama list
-OLLAMA_MODEL = "deepseek-r1:8b"
-LOG_FILE = "work_log.csv"
-LLM_REQUEST_TIMEOUT = 1000  # Timeout for LLM API requests in seconds
-MAX_CHUNK_SIZE = 4000  # Maximum characters per chunk for LLM processing
-# ---------------------
+from settings_manager import SettingsManager
+from settings_page import SettingsPage
  
 class WorkLoggerApp:
     def __init__(self, root):
@@ -25,8 +18,11 @@ class WorkLoggerApp:
         self.root.title("M Work - Task tracker")
         self.root.geometry("800x600")
         
-        # Initialize data repository
-        self.data_repository = CSVDataRepository(LOG_FILE)
+        # Load settings
+        self.settings_manager = SettingsManager()
+        
+        # Initialize data repository using the configured log file path
+        self.data_repository = CSVDataRepository(self.settings_manager.get_log_file_path())
         self.data_repository.initialize()
         
         # State variables
@@ -49,6 +45,7 @@ class WorkLoggerApp:
         self.pages = {}
         self._create_tracker_page()
         self._create_review_page()
+        self._create_settings_page()
         
         # Show tracker page by default
         self.show_page("tracker")
@@ -63,6 +60,7 @@ class WorkLoggerApp:
         menubar.add_cascade(label="Pages", menu=pages_menu)
         pages_menu.add_command(label="Task Tracker", command=lambda: self.show_page("tracker"))
         pages_menu.add_command(label="Review Work Log", command=lambda: self.show_page("review"))
+        pages_menu.add_command(label="Settings", command=lambda: self.show_page("settings"))
         pages_menu.add_separator()
         pages_menu.add_command(label="Exit", command=self.root.quit)
     
@@ -80,7 +78,7 @@ class WorkLoggerApp:
         countdown_label.pack(pady=5)
         self.countdown_label = countdown_label
 
-        info_label = tk.Label(page, text=f"Model: {OLLAMA_MODEL}", font=("Arial", 8), fg="gray")
+        info_label = tk.Label(page, text=f"Model: {self.settings_manager.get('ai_model')}", font=("Arial", 8), fg="gray")
         info_label.pack(pady=0)
         self.info_label = info_label
 
@@ -100,6 +98,25 @@ class WorkLoggerApp:
         """Create the review log page"""
         page = ReviewLogPage(self.container, self.data_repository)
         self.pages["review"] = page
+    
+    def _create_settings_page(self):
+        """Create the settings page"""
+        page = SettingsPage(self.container, self.settings_manager,
+                            on_settings_changed=self._on_settings_changed)
+        self.pages["settings"] = page
+    
+    def _on_settings_changed(self):
+        """Called after settings are saved; refreshes dependent state."""
+        # Update the model info label on the tracker page
+        self.info_label.config(text=f"Model: {self.settings_manager.get('ai_model')}")
+        
+        # Reinitialise the data repository with the (possibly new) log file path
+        new_path = self.settings_manager.get_log_file_path()
+        self.data_repository = CSVDataRepository(new_path)
+        self.data_repository.initialize()
+        
+        # Update the review page to use the new repository
+        self.pages["review"].data_repository = self.data_repository
     
     def show_page(self, page_name):
         """
@@ -164,15 +181,18 @@ class WorkLoggerApp:
             f"Context: {task_info.get('system_info')}\n"
             "Write a very brief, professional single-sentence log entry for this in Markdown format."
         )
- 
+
         payload = {
-            "model": OLLAMA_MODEL,
+            "model": self.settings_manager.get("ai_model"),
             "prompt": prompt,
             "stream": False
         }
- 
+
         try:
-            response = requests.post(OLLAMA_URL, json=payload, timeout=LLM_REQUEST_TIMEOUT)
+            response = requests.post(
+                self.settings_manager.get("ai_api_url"),
+                json=payload,
+                timeout=self.settings_manager.get("llm_request_timeout"))
             if response.status_code == 200:
                 data = response.json()
                 return data.get("response", "").strip()
@@ -196,13 +216,16 @@ class WorkLoggerApp:
         )
 
         payload = {
-            "model": OLLAMA_MODEL,
+            "model": self.settings_manager.get("ai_model"),
             "prompt": prompt,
             "stream": False
         }
 
         try:
-            response = requests.post(OLLAMA_URL, json=payload, timeout=LLM_REQUEST_TIMEOUT)
+            response = requests.post(
+                self.settings_manager.get("ai_api_url"),
+                json=payload,
+                timeout=self.settings_manager.get("llm_request_timeout"))
             if response.status_code == 200:
                 data = response.json()
                 return data.get("response", "").strip()
@@ -254,11 +277,13 @@ class WorkLoggerApp:
             'tasks': tasks
         }
     
-    def chunk_text(self, text, max_chars=MAX_CHUNK_SIZE):
+    def chunk_text(self, text, max_chars=None):
         """
         Split text into chunks for LLM processing.
         Tries to split at sentence boundaries when possible.
         """
+        if max_chars is None:
+            max_chars = self.settings_manager.get("max_chunk_size")
         if len(text) <= max_chars:
             return [text]
         
@@ -308,7 +333,7 @@ class WorkLoggerApp:
             content += f"\n\nTasks completed:\n{task_list}"
         
         # Check if we need to chunk
-        chunks = self.chunk_text(content, max_chars=MAX_CHUNK_SIZE)
+        chunks = self.chunk_text(content, max_chars=self.settings_manager.get("max_chunk_size"))
         
         if len(chunks) == 1:
             # Single chunk - process normally
@@ -355,13 +380,16 @@ class WorkLoggerApp:
     def _call_llm_for_summary(self, prompt):
         """Helper method to call LLM API"""
         payload = {
-            "model": OLLAMA_MODEL,
+            "model": self.settings_manager.get("ai_model"),
             "prompt": prompt,
             "stream": False
         }
         
         try:
-            response = requests.post(OLLAMA_URL, json=payload, timeout=LLM_REQUEST_TIMEOUT)
+            response = requests.post(
+                self.settings_manager.get("ai_api_url"),
+                json=payload,
+                timeout=self.settings_manager.get("llm_request_timeout"))
             if response.status_code == 200:
                 data = response.json()
                 return data.get("response", "").strip()
@@ -435,7 +463,8 @@ class WorkLoggerApp:
         self.btn_start.config(state=tk.DISABLED)
         self.btn_add_task.config(state=tk.NORMAL)
         self.btn_stop.config(state=tk.NORMAL)
-        self.next_checkin_time = start_time + datetime.timedelta(hours=1)
+        self.next_checkin_time = start_time + datetime.timedelta(
+            minutes=self.settings_manager.get("checkin_interval_minutes"))
         
         self.status_label.config(text=f"Day started - Add your first task")
         
@@ -450,8 +479,9 @@ class WorkLoggerApp:
         # Add first task
         self.add_task()
 
-        # 1 Hour Timer (3600000 ms)
-        self.timer_id = self.root.after(3600000, self.hourly_checkin)
+        # Timer using configured interval
+        interval_ms = self.settings_manager.get("checkin_interval_minutes") * 60 * 1000
+        self.timer_id = self.root.after(interval_ms, self.hourly_checkin)
     
     def add_task(self):
         """Add and immediately save a task"""
@@ -528,7 +558,8 @@ class WorkLoggerApp:
  
         self.root.deiconify()
         messagebox.showinfo("Hourly Check-in", f"Hour complete! {len(self.hourly_tasks)} task(s) logged. Add your next task.")
-        self.next_checkin_time = end_time + datetime.timedelta(hours=1)
+        self.next_checkin_time = end_time + datetime.timedelta(
+            minutes=self.settings_manager.get("checkin_interval_minutes"))
         
         # Reset for next hour
         self.hour_start_time = end_time
@@ -540,7 +571,8 @@ class WorkLoggerApp:
         self.add_task()
         
         # Restart timer
-        self.timer_id = self.root.after(3600000, self.hourly_checkin)
+        interval_ms = self.settings_manager.get("checkin_interval_minutes") * 60 * 1000
+        self.timer_id = self.root.after(interval_ms, self.hourly_checkin)
     
     def save_hourly_summary(self, end_time):
         """Generate and save a summary of all tasks from the hour"""
