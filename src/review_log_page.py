@@ -6,6 +6,7 @@ from tkinter import ttk, messagebox
 import datetime
 from typing import Optional
 from data_repository import DataRepository
+import theme
 
 
 class ReviewLogPage(tk.Frame):
@@ -19,7 +20,7 @@ class ReviewLogPage(tk.Frame):
             parent: Parent tkinter widget
             data_repository: Data repository instance
         """
-        super().__init__(parent)
+        super().__init__(parent, bg=theme.WINDOW_BG)
         self.data_repository = data_repository
         self.current_date = datetime.date.today()
         self.tasks = []
@@ -30,27 +31,46 @@ class ReviewLogPage(tk.Frame):
     def _create_widgets(self):
         """Create the UI widgets for the review page"""
         # Header
-        header_frame = tk.Frame(self)
+        header_frame = tk.Frame(self, bg=theme.WINDOW_BG)
         header_frame.pack(fill='x', padx=10, pady=10)
         
-        tk.Label(header_frame, text="Work Log Review", font=("Arial", 16, "bold")).pack(side='left')
+        tk.Label(
+            header_frame, text="Work Log Review",
+            font=theme.FONT_H2, bg=theme.WINDOW_BG, fg=theme.TEXT,
+        ).pack(side='left')
         
         # Date selector
-        date_frame = tk.Frame(self)
+        date_frame = tk.Frame(self, bg=theme.WINDOW_BG)
         date_frame.pack(fill='x', padx=10, pady=5)
         
-        tk.Label(date_frame, text="Date:", font=("Arial", 10)).pack(side='left', padx=5)
+        tk.Label(
+            date_frame, text="Date:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.TEXT,
+        ).pack(side='left', padx=5)
         
         self.date_var = tk.StringVar(value=self.current_date.strftime("%Y-%m-%d"))
-        self.date_entry = tk.Entry(date_frame, textvariable=self.date_var, width=12)
+        self.date_entry = tk.Entry(
+            date_frame, textvariable=self.date_var, width=12,
+            bg=theme.INPUT_BG, fg=theme.TEXT,
+            insertbackground=theme.TEXT,
+        )
         self.date_entry.pack(side='left', padx=5)
         
-        tk.Button(date_frame, text="Today", command=self._set_today, width=8).pack(side='left', padx=2)
-        tk.Button(date_frame, text="Load", command=self._load_tasks, bg="blue", fg="white", width=8).pack(side='left', padx=2)
-        tk.Button(date_frame, text="Refresh", command=self._load_tasks, width=8).pack(side='left', padx=2)
+        tk.Button(
+            date_frame, text="Today", command=self._set_today, width=8,
+            bg=theme.SURFACE_BG, fg=theme.TEXT, relief='flat', cursor='hand2',
+        ).pack(side='left', padx=2)
+        tk.Button(
+            date_frame, text="Load", command=self._load_tasks, width=8,
+            bg=theme.PRIMARY, fg=theme.TEXT, relief='flat', cursor='hand2',
+        ).pack(side='left', padx=2)
+        tk.Button(
+            date_frame, text="Refresh", command=self._load_tasks, width=8,
+            bg=theme.SURFACE_BG, fg=theme.TEXT, relief='flat', cursor='hand2',
+        ).pack(side='left', padx=2)
         
         # Task list with scrollbar
-        list_frame = tk.Frame(self)
+        list_frame = tk.Frame(self, bg=theme.WINDOW_BG)
         list_frame.pack(fill='both', expand=True, padx=10, pady=10)
         
         # Create Treeview for task list
@@ -82,16 +102,25 @@ class ReviewLogPage(tk.Frame):
         self.task_tree.bind('<Double-1>', self._on_task_double_click)
         
         # Action buttons
-        button_frame = tk.Frame(self)
+        button_frame = tk.Frame(self, bg=theme.WINDOW_BG)
         button_frame.pack(fill='x', padx=10, pady=10)
         
-        tk.Button(button_frame, text="Mark as Resolved", command=self._mark_resolved, 
-                 bg="green", fg="white", width=15).pack(side='left', padx=5)
-        tk.Button(button_frame, text="Mark as Unresolved", command=self._mark_unresolved, 
-                 bg="orange", fg="white", width=15).pack(side='left', padx=5)
+        tk.Button(
+            button_frame, text="Mark as Resolved", command=self._mark_resolved,
+            bg=theme.GREEN, fg=theme.WINDOW_BG,
+            font=theme.FONT_BODY, width=15, relief='flat', cursor='hand2',
+        ).pack(side='left', padx=5)
+        tk.Button(
+            button_frame, text="Mark as Unresolved", command=self._mark_unresolved,
+            bg=theme.ACCENT, fg=theme.WINDOW_BG,
+            font=theme.FONT_BODY, width=15, relief='flat', cursor='hand2',
+        ).pack(side='left', padx=5)
         
         # Status label
-        self.status_label = tk.Label(self, text="", font=("Arial", 9), fg="blue")
+        self.status_label = tk.Label(
+            self, text="",
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        )
         self.status_label.pack(pady=5)
     
     def _set_today(self):

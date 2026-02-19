@@ -11,12 +11,17 @@ from csv_data_repository import CSVDataRepository
 from review_log_page import ReviewLogPage
 from settings_manager import SettingsManager
 from settings_page import SettingsPage
+import theme
  
 class WorkLoggerApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("M Work - Task tracker")
+        self.root.title("SheepCat — Tracking My Work")
         self.root.geometry("800x600")
+        self.root.configure(bg=theme.WINDOW_BG)
+
+        # Apply SheepCat brand theme to all ttk widgets
+        theme.setup_ttk_styles(root)
         
         # Load settings
         self.settings_manager = SettingsManager()
@@ -38,7 +43,7 @@ class WorkLoggerApp:
         self._create_menu()
         
         # Create main container for pages
-        self.container = tk.Frame(root)
+        self.container = tk.Frame(root, bg=theme.WINDOW_BG)
         self.container.pack(fill='both', expand=True)
         
         # Create pages
@@ -52,11 +57,20 @@ class WorkLoggerApp:
     
     def _create_menu(self):
         """Create the menu bar"""
-        menubar = tk.Menu(self.root)
+        menubar = tk.Menu(
+            self.root,
+            bg=theme.SURFACE_BG, fg=theme.TEXT,
+            activebackground=theme.PRIMARY_D, activeforeground=theme.TEXT,
+            borderwidth=0,
+        )
         self.root.config(menu=menubar)
-        
+
         # Pages menu
-        pages_menu = tk.Menu(menubar, tearoff=0)
+        pages_menu = tk.Menu(
+            menubar, tearoff=0,
+            bg=theme.SURFACE_BG, fg=theme.TEXT,
+            activebackground=theme.PRIMARY_D, activeforeground=theme.TEXT,
+        )
         menubar.add_cascade(label="Pages", menu=pages_menu)
         pages_menu.add_command(label="Task Tracker", command=lambda: self.show_page("tracker"))
         pages_menu.add_command(label="Review Work Log", command=lambda: self.show_page("review"))
@@ -66,31 +80,55 @@ class WorkLoggerApp:
     
     def _create_tracker_page(self):
         """Create the tracker page (original functionality)"""
-        page = tk.Frame(self.container)
+        page = tk.Frame(self.container, bg=theme.WINDOW_BG)
         self.pages["tracker"] = page
-        
+
         # UI Elements
-        status_label = tk.Label(page, text="Ready to track", font=("Arial", 12))
+        status_label = tk.Label(
+            page, text="Ready to track",
+            font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.TEXT,
+        )
         status_label.pack(pady=20)
         self.status_label = status_label
 
-        countdown_label = tk.Label(page, text="", font=("Arial", 10, "bold"), fg="blue")
+        countdown_label = tk.Label(
+            page, text="",
+            font=theme.FONT_BODY_BOLD, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
+        )
         countdown_label.pack(pady=5)
         self.countdown_label = countdown_label
 
-        info_label = tk.Label(page, text=f"Model: {self.settings_manager.get('ai_model')}", font=("Arial", 8), fg="gray")
+        info_label = tk.Label(
+            page, text=f"Model: {self.settings_manager.get('ai_model')}",
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        )
         info_label.pack(pady=0)
         self.info_label = info_label
 
-        btn_start = tk.Button(page, text="Start Day", command=self.start_tracking, bg="green", fg="white", width=20)
+        btn_start = tk.Button(
+            page, text="Start Day", command=self.start_tracking,
+            bg=theme.GREEN, fg=theme.WINDOW_BG,
+            font=theme.FONT_BODY_BOLD, width=20,
+            relief='flat', cursor='hand2', padx=8, pady=6,
+        )
         btn_start.pack(pady=5)
         self.btn_start = btn_start
 
-        btn_add_task = tk.Button(page, text="Add Task", command=self.add_task, bg="blue", fg="white", state=tk.DISABLED, width=20)
+        btn_add_task = tk.Button(
+            page, text="Add Task", command=self.add_task,
+            bg=theme.PRIMARY, fg=theme.TEXT,
+            font=theme.FONT_BODY_BOLD, width=20,
+            state=tk.DISABLED, relief='flat', cursor='hand2', padx=8, pady=6,
+        )
         btn_add_task.pack(pady=5)
         self.btn_add_task = btn_add_task
 
-        btn_stop = tk.Button(page, text="Stop / End Day", command=self.stop_tracking, bg="red", fg="white", state=tk.DISABLED, width=20)
+        btn_stop = tk.Button(
+            page, text="Stop / End Day", command=self.stop_tracking,
+            bg=theme.RED, fg=theme.TEXT,
+            font=theme.FONT_BODY_BOLD, width=20,
+            state=tk.DISABLED, relief='flat', cursor='hand2', padx=8, pady=6,
+        )
         btn_stop.pack(pady=5)
         self.btn_stop = btn_stop
     
@@ -152,11 +190,20 @@ class WorkLoggerApp:
         resolved_dialog.geometry("300x150")
         resolved_dialog.transient(self.root)
         resolved_dialog.grab_set()
+        resolved_dialog.configure(bg=theme.WINDOW_BG)
         
-        tk.Label(resolved_dialog, text="Was this task/ticket resolved?", font=("Arial", 10)).pack(pady=20)
+        tk.Label(
+            resolved_dialog, text="Was this task/ticket resolved?",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.TEXT,
+        ).pack(pady=20)
         
         resolved_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(resolved_dialog, text="Mark as Resolved", variable=resolved_var, font=("Arial", 10)).pack(pady=10)
+        tk.Checkbutton(
+            resolved_dialog, text="Mark as Resolved", variable=resolved_var,
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.TEXT,
+            selectcolor=theme.SURFACE_BG,
+            activebackground=theme.WINDOW_BG, activeforeground=theme.TEXT,
+        ).pack(pady=10)
         
         result = {"resolved": False}
         
@@ -164,7 +211,11 @@ class WorkLoggerApp:
             result["resolved"] = resolved_var.get()
             resolved_dialog.destroy()
         
-        tk.Button(resolved_dialog, text="OK", command=on_ok, bg="green", fg="white", width=10).pack(pady=10)
+        tk.Button(
+            resolved_dialog, text="OK", command=on_ok,
+            bg=theme.GREEN, fg=theme.WINDOW_BG,
+            font=theme.FONT_BODY, width=10, relief='flat', cursor='hand2',
+        ).pack(pady=10)
         
         self.root.wait_window(resolved_dialog)
         
@@ -407,25 +458,44 @@ class WorkLoggerApp:
         editor.geometry("700x600")
         editor.transient(self.root)
         editor.grab_set()
+        editor.configure(bg=theme.WINDOW_BG)
         
         # Header
-        tk.Label(editor, text="End of Day Summary", font=("Arial", 14, "bold")).pack(pady=10)
+        tk.Label(
+            editor, text="End of Day Summary",
+            font=theme.FONT_H2, bg=theme.WINDOW_BG, fg=theme.TEXT,
+        ).pack(pady=10)
         
         # Tickets section
         if tickets:
-            ticket_frame = tk.Frame(editor)
+            ticket_frame = tk.Frame(editor, bg=theme.WINDOW_BG)
             ticket_frame.pack(fill='x', padx=10, pady=5)
-            tk.Label(ticket_frame, text="Tickets Worked On:", font=("Arial", 10, "bold")).pack(anchor='w')
-            tk.Label(ticket_frame, text=", ".join(tickets), font=("Arial", 9), wraplength=650, justify='left').pack(anchor='w', padx=20)
+            tk.Label(
+                ticket_frame, text="Tickets Worked On:",
+                font=theme.FONT_BODY_BOLD, bg=theme.WINDOW_BG, fg=theme.TEXT,
+            ).pack(anchor='w')
+            tk.Label(
+                ticket_frame, text=", ".join(tickets),
+                font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+                wraplength=650, justify='left',
+            ).pack(anchor='w', padx=20)
         
         # Instructions
-        tk.Label(editor, text="Review and edit the summary below:", font=("Arial", 10)).pack(pady=5)
+        tk.Label(
+            editor, text="Review and edit the summary below:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).pack(pady=5)
         
         # Text editor with scrollbar
-        text_frame = tk.Frame(editor)
+        text_frame = tk.Frame(editor, bg=theme.WINDOW_BG)
         text_frame.pack(fill='both', expand=True, padx=10, pady=10)
         
-        text_editor = scrolledtext.ScrolledText(text_frame, wrap=tk.WORD, font=("Arial", 10))
+        text_editor = scrolledtext.ScrolledText(
+            text_frame, wrap=tk.WORD,
+            font=theme.FONT_MONO,
+            bg=theme.INPUT_BG, fg=theme.TEXT,
+            insertbackground=theme.TEXT,
+        )
         text_editor.pack(fill='both', expand=True)
         text_editor.insert('1.0', summary_text)
         
@@ -442,11 +512,19 @@ class WorkLoggerApp:
             editor.destroy()
         
         # Buttons
-        button_frame = tk.Frame(editor)
+        button_frame = tk.Frame(editor, bg=theme.WINDOW_BG)
         button_frame.pack(pady=10)
         
-        tk.Button(button_frame, text="Save Summary", command=on_save, bg="green", fg="white", width=15).pack(side='left', padx=5)
-        tk.Button(button_frame, text="Cancel", command=on_cancel, bg="gray", fg="white", width=15).pack(side='left', padx=5)
+        tk.Button(
+            button_frame, text="Save Summary", command=on_save,
+            bg=theme.GREEN, fg=theme.WINDOW_BG,
+            font=theme.FONT_BODY, width=15, relief='flat', cursor='hand2',
+        ).pack(side='left', padx=5)
+        tk.Button(
+            button_frame, text="Cancel", command=on_cancel,
+            bg=theme.SURFACE_BG, fg=theme.TEXT,
+            font=theme.FONT_BODY, width=15, relief='flat', cursor='hand2',
+        ).pack(side='left', padx=5)
         
         # Wait for the window to close
         self.root.wait_window(editor)
