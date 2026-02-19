@@ -206,6 +206,24 @@
     footer a:hover { color: #fff; }
     .footer-links { display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 1rem; flex-wrap: wrap; }
 
+    /* ── Licence highlight band ── */
+    .licence-band {
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 3.5rem 1.5rem;
+    }
+    .licence-inner { max-width: 860px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
+    @media (max-width: 640px) { .licence-inner { grid-template-columns: 1fr; gap: 1.5rem; } }
+    .licence-inner h2 { font-size: 1.7rem; font-weight: 800; margin-bottom: 0.75rem; }
+    .licence-inner p { color: var(--muted); font-size: 0.97rem; margin-bottom: 0.75rem; }
+    .licence-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    .licence-table th { text-align: left; font-weight: 700; padding: 0.5rem 0.75rem; background: #f0f1ff; color: var(--text); }
+    .licence-table td { padding: 0.55rem 0.75rem; border-top: 1px solid var(--border); vertical-align: top; color: var(--muted); }
+    .licence-table td:first-child { font-weight: 600; color: var(--text); width: 50%; }
+    .tick { color: #16a34a; font-weight: 700; }
+    .cross { color: #dc2626; font-weight: 700; }
+
     /* ── Utility ── */
     .alt-bg { background: #f0f1ff; }
   </style>
@@ -228,8 +246,8 @@
       you've accomplished.
     </p>
     <div class="hero-actions">
-      <a href="payment.html" class="btn-primary">Get a Licence — from £8.99/yr</a>
-      <a href="#features" class="btn-outline">See What It Does</a>
+      <a href="payment.html" class="btn-primary">Get a Commercial Licence — from £8.99/yr</a>
+      <a href="#licence" class="btn-outline">What does it cover?</a>
     </div>
   </section>
 
@@ -327,6 +345,48 @@
     </div>
   </section>
 
+  <!-- Licence explanation -->
+  <div class="licence-band" id="licence">
+    <div class="licence-inner">
+      <div>
+        <h2>🔑 What does the licence actually cover?</h2>
+        <p>
+          SheepCat is free, open-source software released under the
+          <strong>AGPLv3</strong> licence. That means anyone can download, run,
+          and study the code. However, if you modify SheepCat and
+          <em>distribute it or offer it as a network service to others</em>,
+          the AGPLv3 requires those modifications to be shared under the
+          same licence.
+        </p>
+        <p>
+          Our <strong>Commercial Licence</strong> removes that restriction.
+          It gives you the legal right to modify SheepCat's source code and
+          distribute or deploy it <em>without</em> being obligated to release
+          those changes as open source.
+        </p>
+        <p>
+          You already have access to the app and code — this licence grants you
+          the freedom to adapt it however you need.
+        </p>
+      </div>
+      <div>
+        <table class="licence-table">
+          <thead>
+            <tr><th>Permission</th><th>AGPLv3 (free)</th><th>Commercial Licence</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Use the app</td><td class="tick">✓</td><td class="tick">✓</td></tr>
+            <tr><td>View the source code</td><td class="tick">✓</td><td class="tick">✓</td></tr>
+            <tr><td>Modify for personal use</td><td class="tick">✓ (no share-back needed)</td><td class="tick">✓ (no share-back needed)</td></tr>
+            <tr><td>Distribute or deploy modified version</td><td class="cross">✗ (must release changes)</td><td class="tick">✓ (keep changes private)</td></tr>
+            <tr><td>Offer modified version as a network service</td><td class="cross">✗ (AGPL share-back triggered)</td><td class="tick">✓</td></tr>
+            <tr><td>Priority email support</td><td class="cross">✗</td><td class="tick">✓</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- Who it's for -->
   <section class="section" id="who">
     <div class="section-inner">
@@ -344,8 +404,8 @@
 
   <!-- CTA band -->
   <section class="cta-band">
-    <h2>Ready to take control of your day?</h2>
-    <p>Choose the plan that works for you — cancel or switch any time.</p>
+    <h2>Ready to unlock full commercial freedom?</h2>
+    <p>The app and code are already open source — a Commercial Licence lets you modify it freely, without AGPLv3 obligations.</p>
     <div class="pricing-preview">
       <div class="price-pill">
         <div class="price">£8.99</div>

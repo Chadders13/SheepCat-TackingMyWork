@@ -128,6 +128,27 @@
     .step-text strong { display: block; font-weight: 700; margin-bottom: 0.1rem; }
     .step-text p { color: var(--muted); }
 
+    /* ── Licence reference box ── */
+    .licence-ref {
+      background: var(--green-bg);
+      border: 1px solid var(--green-bd);
+      border-radius: 14px;
+      padding: 1.25rem 1.5rem;
+      text-align: left;
+      margin-bottom: 1.5rem;
+    }
+    .licence-ref h3 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--green);
+      margin-bottom: 0.6rem;
+    }
+    .licence-ref p { color: var(--text); font-size: 0.92rem; }
+    .licence-ref a { color: var(--green); font-weight: 600; text-decoration: none; }
+    .licence-ref a:hover { text-decoration: underline; }
+
     /* ── Buttons ── */
     .action-buttons { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
     .btn-primary {
@@ -221,8 +242,19 @@
       <div class="success-icon">✅</div>
       <h1>Payment successful!</h1>
       <p class="subtitle">
-        Thank you for getting SheepCat. Your licence is on its way — check your inbox.
+        Thank you for getting a SheepCat Commercial Licence. You now have the right to modify the code outside the AGPLv3 open-source requirements.
       </p>
+
+      <!-- Licence reference notice -->
+      <div class="licence-ref">
+        <h3>🔑 Your Licence</h3>
+        <p>
+          <strong>Your payment reference is your Commercial Licence.</strong>
+          Please keep your payment confirmation email safe — it serves as proof of your licence.
+          For any questions, formal licence documents, or further information, contact
+          <a href="mailto:chadwicksys13@gmail.com">chadwicksys13@gmail.com</a> and quote your payment reference.
+        </p>
+      </div>
 
       <div class="next-steps">
         <h3>What happens next</h3>
@@ -230,22 +262,22 @@
           <li>
             <div class="step-num">1</div>
             <div class="step-text">
-              <strong>Check your email</strong>
-              <p>Your licence key and download link will arrive within a few minutes.</p>
+              <strong>Save your payment confirmation</strong>
+              <p>Your payment reference is your Commercial Licence — keep the confirmation email as proof.</p>
             </div>
           </li>
           <li>
             <div class="step-num">2</div>
             <div class="step-text">
-              <strong>Download &amp; install SheepCat</strong>
-              <p>Follow the instructions in the email to download and set up the app.</p>
+              <strong>Download SheepCat</strong>
+              <p>Grab the latest version from the GitHub repository below.</p>
             </div>
           </li>
           <li>
             <div class="step-num">3</div>
             <div class="step-text">
-              <strong>Activate your licence</strong>
-              <p>Enter your key when prompted the first time you launch SheepCat.</p>
+              <strong>Modify freely</strong>
+              <p>You may now customise the source code for your own or business use without AGPLv3 share-back obligations.</p>
             </div>
           </li>
           <li>
@@ -266,8 +298,9 @@
       </div>
 
       <p class="reassurance">
-        Didn't receive an email? Check your spam folder or
-        <a href="mailto:chadwicksys13@gmail.com">contact us</a>.
+        Questions about your licence? Email
+        <a href="mailto:chadwicksys13@gmail.com">chadwicksys13@gmail.com</a>
+        with your payment reference and we'll be happy to help.
       </p>
     </div>
   </main>
