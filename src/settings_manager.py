@@ -9,8 +9,9 @@ import datetime
 
 
 DEFAULT_SETTINGS = {
-    "ollama_url": "http://localhost:11434/api/generate",
-    "ollama_model": "deepseek-r1:8b",
+    "ai_provider": "Ollama",
+    "ai_api_url": "http://localhost:11434/api/generate",
+    "ai_model": "deepseek-r1:8b",
     "checkin_interval_minutes": 60,
     "log_file_directory": ".",
     "log_file_name": "work_log",
@@ -19,7 +20,18 @@ DEFAULT_SETTINGS = {
     "max_chunk_size": 4000,
 }
 
+# Default API URLs for each supported provider
+PROVIDER_DEFAULT_URLS = {
+    "Ollama": "http://localhost:11434/api/generate",
+}
+
 SETTINGS_FILE = "sheepcat_settings.json"
+
+# Keys renamed from previous version — migrate automatically on load
+_KEY_MIGRATIONS = {
+    "ollama_url": "ai_api_url",
+    "ollama_model": "ai_model",
+}
 
 # Mapping from user-facing format tokens to Python strftime strings
 DATE_FORMAT_MAP = {
@@ -47,6 +59,10 @@ class SettingsManager:
             try:
                 with open(self.settings_file, 'r', encoding='utf-8') as f:
                     saved = json.load(f)
+                # Migrate old key names to new ones
+                for old_key, new_key in _KEY_MIGRATIONS.items():
+                    if old_key in saved and new_key not in saved:
+                        saved[new_key] = saved.pop(old_key)
                 for key in DEFAULT_SETTINGS:
                     if key in saved:
                         self.settings[key] = saved[key]

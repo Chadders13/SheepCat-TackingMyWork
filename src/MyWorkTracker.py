@@ -78,7 +78,7 @@ class WorkLoggerApp:
         countdown_label.pack(pady=5)
         self.countdown_label = countdown_label
 
-        info_label = tk.Label(page, text=f"Model: {self.settings_manager.get('ollama_model')}", font=("Arial", 8), fg="gray")
+        info_label = tk.Label(page, text=f"Model: {self.settings_manager.get('ai_model')}", font=("Arial", 8), fg="gray")
         info_label.pack(pady=0)
         self.info_label = info_label
 
@@ -108,7 +108,7 @@ class WorkLoggerApp:
     def _on_settings_changed(self):
         """Called after settings are saved; refreshes dependent state."""
         # Update the model info label on the tracker page
-        self.info_label.config(text=f"Model: {self.settings_manager.get('ollama_model')}")
+        self.info_label.config(text=f"Model: {self.settings_manager.get('ai_model')}")
         
         # Reinitialise the data repository with the (possibly new) log file path
         new_path = self.settings_manager.get_log_file_path()
@@ -183,14 +183,14 @@ class WorkLoggerApp:
         )
 
         payload = {
-            "model": self.settings_manager.get("ollama_model"),
+            "model": self.settings_manager.get("ai_model"),
             "prompt": prompt,
             "stream": False
         }
 
         try:
             response = requests.post(
-                self.settings_manager.get("ollama_url"),
+                self.settings_manager.get("ai_api_url"),
                 json=payload,
                 timeout=self.settings_manager.get("llm_request_timeout"))
             if response.status_code == 200:
@@ -216,14 +216,14 @@ class WorkLoggerApp:
         )
 
         payload = {
-            "model": self.settings_manager.get("ollama_model"),
+            "model": self.settings_manager.get("ai_model"),
             "prompt": prompt,
             "stream": False
         }
 
         try:
             response = requests.post(
-                self.settings_manager.get("ollama_url"),
+                self.settings_manager.get("ai_api_url"),
                 json=payload,
                 timeout=self.settings_manager.get("llm_request_timeout"))
             if response.status_code == 200:
@@ -380,14 +380,14 @@ class WorkLoggerApp:
     def _call_llm_for_summary(self, prompt):
         """Helper method to call LLM API"""
         payload = {
-            "model": self.settings_manager.get("ollama_model"),
+            "model": self.settings_manager.get("ai_model"),
             "prompt": prompt,
             "stream": False
         }
         
         try:
             response = requests.post(
-                self.settings_manager.get("ollama_url"),
+                self.settings_manager.get("ai_api_url"),
                 json=payload,
                 timeout=self.settings_manager.get("llm_request_timeout"))
             if response.status_code == 200:

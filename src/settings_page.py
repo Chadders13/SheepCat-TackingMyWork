@@ -8,7 +8,11 @@ from tkinter import ttk, messagebox, filedialog
 import datetime
 import os
 
-from settings_manager import SettingsManager, DEFAULT_SETTINGS, DATE_FORMAT_MAP
+from settings_manager import SettingsManager, DEFAULT_SETTINGS, DATE_FORMAT_MAP, PROVIDER_DEFAULT_URLS
+
+
+# AI providers available in the dropdown
+AI_PROVIDERS = list(PROVIDER_DEFAULT_URLS.keys())
 
 
 # Display labels and their corresponding format tokens
@@ -64,75 +68,83 @@ class SettingsPage(tk.Frame):
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # ---- Ollama Settings ----
-        tk.Label(form, text="Ollama Settings", font=("Arial", 12, "bold")).grid(
+        # ---- AI Provider Settings ----
+        tk.Label(form, text="AI Provider Settings", font=("Arial", 12, "bold")).grid(
             row=0, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
 
-        tk.Label(form, text="Ollama URL:", font=("Arial", 10)).grid(
+        tk.Label(form, text="AI Provider:", font=("Arial", 10)).grid(
             row=1, column=0, sticky='w', padx=15, pady=5)
-        self.ollama_url_var = tk.StringVar()
-        tk.Entry(form, textvariable=self.ollama_url_var, width=50).grid(
-            row=1, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        self.provider_var = tk.StringVar()
+        self.provider_combo = ttk.Combobox(
+            form, textvariable=self.provider_var, values=AI_PROVIDERS, width=27, state='readonly')
+        self.provider_combo.grid(row=1, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        self.provider_combo.bind('<<ComboboxSelected>>', self._on_provider_changed)
 
-        tk.Label(form, text="Ollama Model:", font=("Arial", 10)).grid(
+        tk.Label(form, text="API URL:", font=("Arial", 10)).grid(
             row=2, column=0, sticky='w', padx=15, pady=5)
-        self.ollama_model_var = tk.StringVar()
-        tk.Entry(form, textvariable=self.ollama_model_var, width=30).grid(
+        self.api_url_var = tk.StringVar()
+        tk.Entry(form, textvariable=self.api_url_var, width=50).grid(
             row=2, column=1, columnspan=2, sticky='w', padx=5, pady=5)
 
-        tk.Label(form, text="LLM Timeout (seconds):", font=("Arial", 10)).grid(
+        tk.Label(form, text="Model:", font=("Arial", 10)).grid(
             row=3, column=0, sticky='w', padx=15, pady=5)
+        self.model_var = tk.StringVar()
+        tk.Entry(form, textvariable=self.model_var, width=30).grid(
+            row=3, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+
+        tk.Label(form, text="Request Timeout (seconds):", font=("Arial", 10)).grid(
+            row=4, column=0, sticky='w', padx=15, pady=5)
         self.llm_timeout_var = tk.StringVar()
         tk.Entry(form, textvariable=self.llm_timeout_var, width=10).grid(
-            row=3, column=1, sticky='w', padx=5, pady=5)
+            row=4, column=1, sticky='w', padx=5, pady=5)
 
         tk.Label(form, text="Max Chunk Size (chars):", font=("Arial", 10)).grid(
-            row=4, column=0, sticky='w', padx=15, pady=5)
+            row=5, column=0, sticky='w', padx=15, pady=5)
         self.max_chunk_var = tk.StringVar()
         tk.Entry(form, textvariable=self.max_chunk_var, width=10).grid(
-            row=4, column=1, sticky='w', padx=5, pady=5)
+            row=5, column=1, sticky='w', padx=5, pady=5)
 
         # ---- Timer Settings ----
         tk.Label(form, text="Timer Settings", font=("Arial", 12, "bold")).grid(
-            row=5, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
+            row=6, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
 
         tk.Label(form, text="Check-in Interval (minutes):", font=("Arial", 10)).grid(
-            row=6, column=0, sticky='w', padx=15, pady=5)
+            row=7, column=0, sticky='w', padx=15, pady=5)
         self.interval_var = tk.StringVar()
         tk.Entry(form, textvariable=self.interval_var, width=10).grid(
-            row=6, column=1, sticky='w', padx=5, pady=5)
+            row=7, column=1, sticky='w', padx=5, pady=5)
 
         # ---- Log File Settings ----
         tk.Label(form, text="Log File Settings", font=("Arial", 12, "bold")).grid(
-            row=7, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
+            row=8, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
 
         tk.Label(form, text="Log File Directory:", font=("Arial", 10)).grid(
-            row=8, column=0, sticky='w', padx=15, pady=5)
+            row=9, column=0, sticky='w', padx=15, pady=5)
         self.log_dir_var = tk.StringVar()
         dir_frame = tk.Frame(form)
-        dir_frame.grid(row=8, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        dir_frame.grid(row=9, column=1, columnspan=2, sticky='w', padx=5, pady=5)
         tk.Entry(dir_frame, textvariable=self.log_dir_var, width=40).pack(side='left')
         tk.Button(dir_frame, text="Browse...", command=self._browse_directory).pack(side='left', padx=5)
 
         tk.Label(form, text="Log File Name (no extension):", font=("Arial", 10)).grid(
-            row=9, column=0, sticky='w', padx=15, pady=5)
+            row=10, column=0, sticky='w', padx=15, pady=5)
         self.log_name_var = tk.StringVar()
         tk.Entry(form, textvariable=self.log_name_var, width=30).grid(
-            row=9, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+            row=10, column=1, columnspan=2, sticky='w', padx=5, pady=5)
 
         tk.Label(form, text="Date Format in Filename:", font=("Arial", 10)).grid(
-            row=10, column=0, sticky='w', padx=15, pady=5)
+            row=11, column=0, sticky='w', padx=15, pady=5)
         self.date_format_var = tk.StringVar()
         self.date_format_combo = ttk.Combobox(
             form, textvariable=self.date_format_var, width=38, state='readonly')
         self.date_format_combo['values'] = [opt[0] for opt in DATE_FORMAT_OPTIONS]
-        self.date_format_combo.grid(row=10, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        self.date_format_combo.grid(row=11, column=1, columnspan=2, sticky='w', padx=5, pady=5)
 
         tk.Label(form, text="Filename Preview:", font=("Arial", 10)).grid(
-            row=11, column=0, sticky='w', padx=15, pady=5)
+            row=12, column=0, sticky='w', padx=15, pady=5)
         self.preview_var = tk.StringVar()
         tk.Label(form, textvariable=self.preview_var, font=("Arial", 9), fg="blue").grid(
-            row=11, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+            row=12, column=1, columnspan=2, sticky='w', padx=5, pady=5)
 
         # Bind changes to update preview
         self.log_dir_var.trace_add('write', self._update_preview)
@@ -154,6 +166,12 @@ class SettingsPage(tk.Frame):
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    def _on_provider_changed(self, _event=None):
+        """Auto-fill the default API URL when the provider selection changes."""
+        provider = self.provider_var.get()
+        if provider in PROVIDER_DEFAULT_URLS:
+            self.api_url_var.set(PROVIDER_DEFAULT_URLS[provider])
 
     def _browse_directory(self):
         """Open a directory chooser and populate the directory field."""
@@ -191,8 +209,9 @@ class SettingsPage(tk.Frame):
     def _load_settings(self):
         """Populate UI fields from the settings manager."""
         sm = self.settings_manager
-        self.ollama_url_var.set(sm.get("ollama_url"))
-        self.ollama_model_var.set(sm.get("ollama_model"))
+        self.provider_var.set(sm.get("ai_provider"))
+        self.api_url_var.set(sm.get("ai_api_url"))
+        self.model_var.set(sm.get("ai_model"))
         self.llm_timeout_var.set(str(sm.get("llm_request_timeout")))
         self.max_chunk_var.set(str(sm.get("max_chunk_size")))
         self.interval_var.set(str(sm.get("checkin_interval_minutes")))
@@ -227,8 +246,9 @@ class SettingsPage(tk.Frame):
             return
 
         sm = self.settings_manager
-        sm.set("ollama_url", self.ollama_url_var.get().strip())
-        sm.set("ollama_model", self.ollama_model_var.get().strip())
+        sm.set("ai_provider", self.provider_var.get())
+        sm.set("ai_api_url", self.api_url_var.get().strip())
+        sm.set("ai_model", self.model_var.get().strip())
         sm.set("llm_request_timeout", timeout)
         sm.set("max_chunk_size", chunk_size)
         sm.set("checkin_interval_minutes", interval)
