@@ -46,7 +46,10 @@ For detailed installation and setup instructions, see **[SETUP.md](SETUP.md)**.
 4. **Install dependencies**: `pip install -r requirements.txt`
 5. **Run the app**: `python src/MyWorkTracker.py`
 
-For full instructions including Docker setup, troubleshooting, and advanced configuration, please refer to **[SETUP.md](SETUP.md)**.
+### Documentation
+
+- **[SETUP.md](SETUP.md)** - Complete installation and setup instructions
+- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Quick command reference and common tasks
 
 ## 🤖 LLM Configuration
 
