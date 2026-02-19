@@ -13,6 +13,8 @@ OLLAMA_URL = "http://localhost:11434/api/generate"
 # Swap this to "nordic-text" or "deepseek-coder" etc. as per your ollama list
 OLLAMA_MODEL = "deepseek-r1:8b"
 LOG_FILE = "work_log.csv"
+LLM_REQUEST_TIMEOUT = 1000  # Timeout for LLM API requests in seconds
+MAX_CHUNK_SIZE = 4000  # Maximum characters per chunk for LLM processing
 # ---------------------
  
 class WorkLoggerApp:
@@ -110,7 +112,7 @@ class WorkLoggerApp:
         }
  
         try:
-            response = requests.post(OLLAMA_URL, json=payload, timeout=1000)
+            response = requests.post(OLLAMA_URL, json=payload, timeout=LLM_REQUEST_TIMEOUT)
             if response.status_code == 200:
                 data = response.json()
                 return data.get("response", "").strip()
@@ -140,7 +142,7 @@ class WorkLoggerApp:
         }
 
         try:
-            response = requests.post(OLLAMA_URL, json=payload, timeout=1000)
+            response = requests.post(OLLAMA_URL, json=payload, timeout=LLM_REQUEST_TIMEOUT)
             if response.status_code == 200:
                 data = response.json()
                 return data.get("response", "").strip()
@@ -207,7 +209,7 @@ class WorkLoggerApp:
             'tasks': tasks
         }
     
-    def chunk_text(self, text, max_chars=4000):
+    def chunk_text(self, text, max_chars=MAX_CHUNK_SIZE):
         """
         Split text into chunks for LLM processing.
         Tries to split at sentence boundaries when possible.
@@ -261,7 +263,7 @@ class WorkLoggerApp:
             content += f"\n\nTasks completed:\n{task_list}"
         
         # Check if we need to chunk
-        chunks = self.chunk_text(content, max_chars=4000)
+        chunks = self.chunk_text(content, max_chars=MAX_CHUNK_SIZE)
         
         if len(chunks) == 1:
             # Single chunk - process normally
@@ -314,7 +316,7 @@ class WorkLoggerApp:
         }
         
         try:
-            response = requests.post(OLLAMA_URL, json=payload, timeout=1000)
+            response = requests.post(OLLAMA_URL, json=payload, timeout=LLM_REQUEST_TIMEOUT)
             if response.status_code == 200:
                 data = response.json()
                 return data.get("response", "").strip()
