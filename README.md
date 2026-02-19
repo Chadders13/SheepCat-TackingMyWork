@@ -2,7 +2,7 @@
 
 A gentle, neurodivergent-friendly task tracking application that helps you maintain a log of your activities throughout the day.
 
-<a href="https://www.buymeacoffee.com/chadders13h"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="217" height="60"></a>
+<a href="https://www.buymeacoffee.com/chadders13h" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="217" height="60"></a>
 
 ## 🌟 Overview
 
