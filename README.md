@@ -36,7 +36,17 @@ SheepCat is designed to help people keep track of their work activities in a non
 
 ## 🚀 Getting Started
 
-*(Installation and setup instructions will be added once the code is integrated)*
+For detailed installation and setup instructions, see **[SETUP.md](SETUP.md)**.
+
+### Quick Start
+
+1. **Install Python 3.7+** and ensure `tkinter` is available
+2. **Install Ollama** from [https://ollama.ai](https://ollama.ai)
+3. **Download an LLM model**: `ollama pull deepseek-r1:8b`
+4. **Install dependencies**: `pip install -r requirements.txt`
+5. **Run the app**: `python src/MyWorkTracker.py`
+
+For full instructions including Docker setup, troubleshooting, and advanced configuration, please refer to **[SETUP.md](SETUP.md)**.
 
 ## 🤖 LLM Configuration
 

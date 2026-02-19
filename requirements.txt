@@ -1,0 +1,5 @@
+# Python dependencies for SheepCat - Task Tracker
+# Install with: pip install -r requirements.txt
+
+# HTTP requests for Ollama API
+requests>=2.31.0
