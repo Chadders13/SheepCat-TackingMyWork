@@ -103,7 +103,7 @@ class SettingsManager:
         else:
             date_str = datetime.datetime.now().strftime("%Y-%m-%d")
 
-        filename = f"daily_summary_{date_str}.txt"
+        filename = f"daily_summary_{date_str}.md"
         return os.path.join(directory, filename)
 
     def get_log_file_path(self):

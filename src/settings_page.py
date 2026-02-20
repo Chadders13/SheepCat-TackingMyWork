@@ -351,7 +351,7 @@ class SettingsPage(tk.Frame):
         else:
             date_str = datetime.datetime.now().strftime("%Y-%m-%d")
 
-        filename = f"daily_summary_{date_str}.txt"
+        filename = f"daily_summary_{date_str}.md"
         self.summary_preview_var.set(os.path.join(directory, filename))
 
     # ------------------------------------------------------------------

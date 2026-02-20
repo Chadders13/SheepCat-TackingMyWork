@@ -756,7 +756,7 @@ class WorkLoggerApp:
         else:
             print(f"Error saving day summary")
 
-        # Optionally save as a standalone text file
+        # Optionally save as a standalone Markdown file
         if self.settings_manager.get("summary_save_to_file"):
             summary_path = self.settings_manager.get_summary_file_path()
             try:
@@ -764,10 +764,10 @@ class WorkLoggerApp:
                 if parent_dir:
                     os.makedirs(parent_dir, exist_ok=True)
                 with open(summary_path, 'w', encoding='utf-8') as f:
-                    f.write(f"Daily Summary — {end_time.strftime('%Y-%m-%d')}\n")
-                    f.write("=" * 60 + "\n\n")
+                    f.write(f"# Daily Summary — {end_time.strftime('%Y-%m-%d')}\n\n")
                     if tickets:
-                        f.write(f"Tickets: {ticket_list}\n\n")
+                        f.write(f"**Tickets:** {ticket_list}\n\n")
+                    f.write("---\n\n")
                     f.write(summary)
                     f.write("\n")
                 print(f"Standalone summary saved to: {summary_path}")
