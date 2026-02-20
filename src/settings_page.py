@@ -201,6 +201,63 @@ class SettingsPage(tk.Frame):
         self.log_name_var.trace_add('write', self._update_preview)
         self.date_format_combo.bind('<<ComboboxSelected>>', lambda e: self._update_preview())
 
+        # ---- Daily Summary Settings ----
+        tk.Label(
+            form, text="Daily Summary Settings",
+            font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
+        ).grid(row=13, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
+
+        self.summary_save_var = tk.BooleanVar()
+        tk.Checkbutton(
+            form, text="Save daily summary as standalone file",
+            variable=self.summary_save_var,
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.TEXT,
+            selectcolor=theme.INPUT_BG, activebackground=theme.WINDOW_BG,
+            command=self._on_summary_save_toggled,
+        ).grid(row=14, column=0, columnspan=3, sticky='w', padx=15, pady=5)
+
+        tk.Label(
+            form, text="Summary File Directory:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=15, column=0, sticky='w', padx=15, pady=5)
+        self.summary_dir_var = tk.StringVar()
+        summary_dir_frame = tk.Frame(form, bg=theme.WINDOW_BG)
+        summary_dir_frame.grid(row=15, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        self.summary_dir_entry = tk.Entry(
+            summary_dir_frame, textvariable=self.summary_dir_var, width=40,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        )
+        self.summary_dir_entry.pack(side='left')
+        self.summary_dir_browse_btn = tk.Button(
+            summary_dir_frame, text="Browse...", command=self._browse_summary_directory,
+            bg=theme.SURFACE_BG, fg=theme.TEXT, relief='flat', cursor='hand2',
+        )
+        self.summary_dir_browse_btn.pack(side='left', padx=5)
+
+        tk.Label(
+            form, text="Date Format in Filename:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=16, column=0, sticky='w', padx=15, pady=5)
+        self.summary_date_format_var = tk.StringVar()
+        self.summary_date_format_combo = ttk.Combobox(
+            form, textvariable=self.summary_date_format_var, width=38, state='readonly')
+        self.summary_date_format_combo['values'] = [opt[0] for opt in DATE_FORMAT_OPTIONS]
+        self.summary_date_format_combo.grid(row=16, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+
+        tk.Label(
+            form, text="Summary Filename Preview:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=17, column=0, sticky='w', padx=15, pady=5)
+        self.summary_preview_var = tk.StringVar()
+        tk.Label(
+            form, textvariable=self.summary_preview_var,
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
+        ).grid(row=17, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+
+        # Bind changes to update summary preview
+        self.summary_dir_var.trace_add('write', self._update_summary_preview)
+        self.summary_date_format_combo.bind('<<ComboboxSelected>>', lambda e: self._update_summary_preview())
+
         # ---- Buttons ----
         button_frame = tk.Frame(self, bg=theme.WINDOW_BG)
         button_frame.pack(pady=15)
@@ -238,6 +295,20 @@ class SettingsPage(tk.Frame):
         if directory:
             self.log_dir_var.set(directory)
 
+    def _browse_summary_directory(self):
+        """Open a directory chooser and populate the summary directory field."""
+        directory = filedialog.askdirectory(title="Select Summary File Directory")
+        if directory:
+            self.summary_dir_var.set(directory)
+
+    def _on_summary_save_toggled(self):
+        """Enable or disable the summary directory widgets based on the checkbox."""
+        enabled = self.summary_save_var.get()
+        state = 'normal' if enabled else 'disabled'
+        self.summary_dir_entry.config(state=state)
+        self.summary_dir_browse_btn.config(state=state)
+        self.summary_date_format_combo.config(state='readonly' if enabled else 'disabled')
+
     def _get_date_format_value(self):
         """Return the format token corresponding to the currently selected display label."""
         display = self.date_format_var.get()
@@ -245,6 +316,14 @@ class SettingsPage(tk.Frame):
             if label == display:
                 return value
         return ""
+
+    def _get_summary_date_format_value(self):
+        """Return the format token for the currently selected summary date format label."""
+        display = self.summary_date_format_var.get()
+        for label, value in DATE_FORMAT_OPTIONS:
+            if label == display:
+                return value
+        return "{yyyy-MM-dd}"
 
     def _update_preview(self, *_args):
         """Rebuild the filename preview whenever relevant fields change."""
@@ -260,6 +339,20 @@ class SettingsPage(tk.Frame):
             filename = f"{name}.csv"
 
         self.preview_var.set(os.path.join(directory, filename))
+
+    def _update_summary_preview(self, *_args):
+        """Rebuild the summary filename preview whenever relevant fields change."""
+        directory = self.summary_dir_var.get() or "."
+        date_format_value = self._get_summary_date_format_value()
+
+        if date_format_value and date_format_value in DATE_FORMAT_MAP:
+            py_fmt = DATE_FORMAT_MAP[date_format_value]
+            date_str = datetime.datetime.now().strftime(py_fmt)
+        else:
+            date_str = datetime.datetime.now().strftime("%Y-%m-%d")
+
+        filename = f"daily_summary_{date_str}.md"
+        self.summary_preview_var.set(os.path.join(directory, filename))
 
     # ------------------------------------------------------------------
     # Load / Save
@@ -286,7 +379,23 @@ class SettingsPage(tk.Frame):
                 break
         self.date_format_var.set(display_label)
 
+        # Daily summary settings
+        self.summary_save_var.set(bool(sm.get("summary_save_to_file")))
+        self.summary_dir_var.set(sm.get("summary_file_directory"))
+
+        summary_date_fmt_value = sm.get("summary_file_date_format")
+        summary_display_label = DATE_FORMAT_OPTIONS[0][0]
+        for label, value in DATE_FORMAT_OPTIONS:
+            if value == summary_date_fmt_value:
+                summary_display_label = label
+                break
+        self.summary_date_format_var.set(summary_display_label)
+
+        # Apply enabled/disabled state based on checkbox
+        self._on_summary_save_toggled()
+
         self._update_preview()
+        self._update_summary_preview()
 
     def _save_settings(self):
         """Validate UI input and persist settings."""
@@ -304,6 +413,11 @@ class SettingsPage(tk.Frame):
                                  "Timeout, chunk size and interval must be positive numbers.")
             return
 
+        if self.summary_save_var.get() and not self.summary_dir_var.get().strip():
+            messagebox.showerror("Invalid Settings",
+                                 "Please specify a directory for the standalone summary file.")
+            return
+
         sm = self.settings_manager
         sm.set("ai_provider", self.provider_var.get())
         sm.set("ai_api_url", self.api_url_var.get().strip())
@@ -314,6 +428,9 @@ class SettingsPage(tk.Frame):
         sm.set("log_file_directory", self.log_dir_var.get().strip())
         sm.set("log_file_name", self.log_name_var.get().strip())
         sm.set("log_file_date_format", self._get_date_format_value())
+        sm.set("summary_save_to_file", self.summary_save_var.get())
+        sm.set("summary_file_directory", self.summary_dir_var.get().strip())
+        sm.set("summary_file_date_format", self._get_summary_date_format_value())
 
         if sm.save():
             self.status_label.config(text="Settings saved successfully!", fg=theme.GREEN)
