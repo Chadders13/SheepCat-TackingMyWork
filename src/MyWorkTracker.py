@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import simpledialog, messagebox, scrolledtext
+from tkinter import messagebox, scrolledtext
 import csv
 import datetime
 import os
@@ -13,6 +13,9 @@ from settings_manager import SettingsManager
 from settings_page import SettingsPage
 import theme
  
+_NO_TICKET_LABEL = "(no ticket)"
+
+
 class WorkLoggerApp:
     def __init__(self, root):
         self.root = root
@@ -180,46 +183,125 @@ class WorkLoggerApp:
         return f"OS: {platform.system()} | Node: {platform.node()}"
  
     def ask_task_details(self):
-        title = simpledialog.askstring("Input", "What are you working on? (Title)")
-        if title is None: return None
-        ticket = simpledialog.askstring("Input", "Ticket ID(s) / Reference(s) (comma-separated for multiple):")
-        
-        # Ask if resolved
-        resolved_dialog = tk.Toplevel(self.root)
-        resolved_dialog.title("Task Status")
-        resolved_dialog.geometry("300x150")
-        resolved_dialog.transient(self.root)
-        resolved_dialog.grab_set()
-        resolved_dialog.configure(bg=theme.WINDOW_BG)
-        
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Add Task")
+        dialog.geometry("460x520")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        dialog.configure(bg=theme.WINDOW_BG)
+
+        # ── Notes section ────────────────────────────────────────────────────
         tk.Label(
-            resolved_dialog, text="Was this task/ticket resolved?",
-            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.TEXT,
-        ).pack(pady=20)
-        
-        resolved_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(
-            resolved_dialog, text="Mark as Resolved", variable=resolved_var,
-            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.TEXT,
-            selectcolor=theme.SURFACE_BG,
-            activebackground=theme.WINDOW_BG, activeforeground=theme.TEXT,
-        ).pack(pady=10)
-        
-        result = {"resolved": False}
-        
+            dialog, text="Task Notes:",
+            font=theme.FONT_BODY_BOLD, bg=theme.WINDOW_BG, fg=theme.TEXT,
+            anchor='w',
+        ).pack(fill='x', padx=15, pady=(15, 2))
+
+        notes_text = tk.Text(
+            dialog, height=6, wrap=tk.WORD,
+            font=theme.FONT_BODY,
+            bg=theme.INPUT_BG, fg=theme.TEXT,
+            insertbackground=theme.TEXT,
+            relief='flat', padx=6, pady=4,
+        )
+        notes_text.pack(fill='x', padx=15, pady=(0, 10))
+
+        # ── Ticket section ───────────────────────────────────────────────────
+        tk.Label(
+            dialog, text="Ticket ID(s) (comma-separated for multiple):",
+            font=theme.FONT_BODY_BOLD, bg=theme.WINDOW_BG, fg=theme.TEXT,
+            anchor='w',
+        ).pack(fill='x', padx=15, pady=(0, 2))
+
+        ticket_var = tk.StringVar()
+        ticket_entry = tk.Entry(
+            dialog, textvariable=ticket_var,
+            font=theme.FONT_BODY,
+            bg=theme.INPUT_BG, fg=theme.TEXT,
+            insertbackground=theme.TEXT,
+            relief='flat',
+        )
+        ticket_entry.pack(fill='x', padx=15, pady=(0, 10))
+
+        # ── Resolved section (per-ticket checkboxes) ─────────────────────────
+        tk.Label(
+            dialog, text="Resolved Status (tick each resolved ticket):",
+            font=theme.FONT_BODY_BOLD, bg=theme.WINDOW_BG, fg=theme.TEXT,
+            anchor='w',
+        ).pack(fill='x', padx=15, pady=(0, 2))
+
+        resolved_outer = tk.Frame(dialog, bg=theme.SURFACE_BG, pady=6)
+        resolved_outer.pack(fill='x', padx=15, pady=(0, 10))
+
+        resolved_vars = {}
+
+        def _refresh_resolved_checkboxes(*_):
+            for widget in resolved_outer.winfo_children():
+                widget.destroy()
+            resolved_vars.clear()
+
+            tickets_raw = ticket_var.get()
+            tickets = [t.strip() for t in tickets_raw.split(',') if t.strip()]
+            if not tickets:
+                tickets = [_NO_TICKET_LABEL]
+
+            for tkt in tickets:
+                var = tk.BooleanVar(value=False)
+                key = '' if tkt == _NO_TICKET_LABEL else tkt
+                resolved_vars[key] = var
+                tk.Checkbutton(
+                    resolved_outer,
+                    text=f"Resolved: {tkt}",
+                    variable=var,
+                    font=theme.FONT_BODY,
+                    bg=theme.SURFACE_BG, fg=theme.TEXT,
+                    selectcolor=theme.INPUT_BG,
+                    activebackground=theme.SURFACE_BG, activeforeground=theme.TEXT,
+                    anchor='w',
+                ).pack(fill='x', padx=10, pady=1)
+
+        ticket_var.trace_add('write', _refresh_resolved_checkboxes)
+        _refresh_resolved_checkboxes()
+
+        # ── OK / Cancel buttons ───────────────────────────────────────────────
+        result = {"cancelled": True}
+
         def on_ok():
-            result["resolved"] = resolved_var.get()
-            resolved_dialog.destroy()
-        
+            notes = notes_text.get('1.0', 'end-1c').strip()
+            if not notes:
+                messagebox.showwarning("Input Required", "Please enter task notes.", parent=dialog)
+                return
+            result.update({
+                "title": notes,
+                "ticket": ticket_var.get().strip(),
+                "resolved": {k: v.get() for k, v in resolved_vars.items()},
+                "cancelled": False,
+            })
+            dialog.destroy()
+
+        def on_cancel():
+            dialog.destroy()
+
+        btn_frame = tk.Frame(dialog, bg=theme.WINDOW_BG)
+        btn_frame.pack(pady=10)
+
         tk.Button(
-            resolved_dialog, text="OK", command=on_ok,
+            btn_frame, text="OK", command=on_ok,
             bg=theme.GREEN, fg=theme.WINDOW_BG,
             font=theme.FONT_BODY, width=10, relief='flat', cursor='hand2',
-        ).pack(pady=10)
-        
-        self.root.wait_window(resolved_dialog)
-        
-        return {"title": title, "ticket": ticket, "resolved": result["resolved"]}
+        ).pack(side='left', padx=5)
+        tk.Button(
+            btn_frame, text="Cancel", command=on_cancel,
+            bg=theme.SURFACE_BG, fg=theme.TEXT,
+            font=theme.FONT_BODY, width=10, relief='flat', cursor='hand2',
+        ).pack(side='left', padx=5)
+
+        notes_text.focus_set()
+        self.root.wait_window(dialog)
+
+        if result.get("cancelled"):
+            return None
+        return result
  
     def generate_ai_markdown(self, task_info, duration):
         """
@@ -605,11 +687,17 @@ class WorkLoggerApp:
         tickets = [t.strip() for t in tickets_raw.split(',') if t.strip()]
         if not tickets:
             tickets = ['']
-        
-        resolved = "Yes" if task_details.get('resolved', False) else "No"
+
+        # resolved may be a per-ticket dict (new format) or a bool (legacy)
+        resolved_info = task_details.get('resolved', False)
 
         # Write each ticket row immediately using repository
         for ticket in tickets:
+            if isinstance(resolved_info, dict):
+                resolved = "Yes" if resolved_info.get(ticket, False) else "No"
+            else:
+                resolved = "Yes" if resolved_info else "No"
+
             task_data = {
                 'start_time': task_time.strftime("%Y-%m-%d %H:%M:%S"),
                 'end_time': task_time.strftime("%Y-%m-%d %H:%M:%S"),
