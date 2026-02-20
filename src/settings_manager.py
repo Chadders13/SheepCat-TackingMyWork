@@ -18,6 +18,9 @@ DEFAULT_SETTINGS = {
     "log_file_date_format": "",  # e.g. "{yyyyMMdd}" - empty means no date in filename
     "llm_request_timeout": 1000,
     "max_chunk_size": 4000,
+    "summary_save_to_file": False,
+    "summary_file_directory": ".",
+    "summary_file_date_format": "{yyyy-MM-dd}",
 }
 
 # Default API URLs for each supported provider
@@ -88,6 +91,20 @@ class SettingsManager:
     def set(self, key, value):
         """Set a setting value."""
         self.settings[key] = value
+
+    def get_summary_file_path(self):
+        """Build the full standalone summary file path with optional date format applied."""
+        directory = self.settings.get("summary_file_directory", ".")
+        date_format = self.settings.get("summary_file_date_format", "{yyyy-MM-dd}")
+
+        if date_format and date_format in DATE_FORMAT_MAP:
+            py_fmt = DATE_FORMAT_MAP[date_format]
+            date_str = datetime.datetime.now().strftime(py_fmt)
+        else:
+            date_str = datetime.datetime.now().strftime("%Y-%m-%d")
+
+        filename = f"daily_summary_{date_str}.txt"
+        return os.path.join(directory, filename)
 
     def get_log_file_path(self):
         """Build the full log file path with optional date format applied to the filename."""

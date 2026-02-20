@@ -737,7 +737,7 @@ class WorkLoggerApp:
         self.finalize_stop_ui()
     
     def save_day_summary(self, summary, tickets, end_time):
-        """Save the end-of-day summary to the CSV file"""
+        """Save the end-of-day summary to the CSV file and optionally to a standalone file."""
         ticket_list = ", ".join(tickets) if tickets else "All"
         
         task_data = {
@@ -755,6 +755,24 @@ class WorkLoggerApp:
             print(f"Day summary saved: {len(summary)} characters")
         else:
             print(f"Error saving day summary")
+
+        # Optionally save as a standalone text file
+        if self.settings_manager.get("summary_save_to_file"):
+            summary_path = self.settings_manager.get_summary_file_path()
+            try:
+                parent_dir = os.path.dirname(summary_path)
+                if parent_dir:
+                    os.makedirs(parent_dir, exist_ok=True)
+                with open(summary_path, 'w', encoding='utf-8') as f:
+                    f.write(f"Daily Summary — {end_time.strftime('%Y-%m-%d')}\n")
+                    f.write("=" * 60 + "\n\n")
+                    if tickets:
+                        f.write(f"Tickets: {ticket_list}\n\n")
+                    f.write(summary)
+                    f.write("\n")
+                print(f"Standalone summary saved to: {summary_path}")
+            except Exception as e:
+                print(f"Error saving standalone summary: {e}")
  
     def finalize_stop_ui(self):
         self.is_running = False
