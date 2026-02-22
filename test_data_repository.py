@@ -11,6 +11,7 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from csv_data_repository import CSVDataRepository
+from todo_repository import TodoRepository
 
 
 class TestCSVDataRepository(unittest.TestCase):
@@ -186,6 +187,92 @@ class TestCSVDataRepository(unittest.TestCase):
         self.assertEqual(len(tasks), 2)
         self.assertEqual(tasks[0]['Title'], 'Task 2')
         self.assertEqual(tasks[1]['Title'], 'Task 3')
+
+
+class TestTodoRepository(unittest.TestCase):
+    def setUp(self):
+        fd, self.csv_path = tempfile.mkstemp(suffix='.csv')
+        os.close(fd)
+        os.remove(self.csv_path)
+        self.repo = TodoRepository(self.csv_path)
+
+    def tearDown(self):
+        if os.path.exists(self.csv_path):
+            os.remove(self.csv_path)
+
+    def test_initialize_creates_file(self):
+        """initialize() should create the CSV with the correct headers."""
+        self.repo.initialize()
+        self.assertTrue(os.path.exists(self.csv_path))
+        with open(self.csv_path, 'r') as f:
+            headers = f.readline().strip()
+        self.assertEqual(headers, "ID,Task,Priority,Status,Created,Notes")
+
+    def test_add_and_get_todos(self):
+        """add_todo() should persist items retrievable by get_all_todos()."""
+        self.repo.initialize()
+        self.repo.add_todo("Fix authentication bug", "High", "Blocking release")
+        todos = self.repo.get_all_todos()
+        self.assertEqual(len(todos), 1)
+        self.assertEqual(todos[0]['Task'], 'Fix authentication bug')
+        self.assertEqual(todos[0]['Priority'], 'High')
+        self.assertEqual(todos[0]['Status'], 'Pending')
+        self.assertEqual(todos[0]['Notes'], 'Blocking release')
+
+    def test_add_multiple_todos_unique_ids(self):
+        """Each added todo should receive a unique, incrementing ID."""
+        self.repo.initialize()
+        self.repo.add_todo("Task A")
+        self.repo.add_todo("Task B")
+        todos = self.repo.get_all_todos()
+        self.assertEqual(len(todos), 2)
+        self.assertNotEqual(todos[0]['ID'], todos[1]['ID'])
+
+    def test_update_todo_status(self):
+        """update_todo_status() should change a todo's Status field."""
+        self.repo.initialize()
+        self.repo.add_todo("Write tests")
+        todos = self.repo.get_all_todos()
+        todo_id = todos[0]['ID']
+
+        result = self.repo.update_todo_status(todo_id, "Done")
+        self.assertTrue(result)
+
+        updated = self.repo.get_all_todos()
+        self.assertEqual(updated[0]['Status'], 'Done')
+
+    def test_update_nonexistent_todo_returns_false(self):
+        """update_todo_status() should return False when the ID is not found."""
+        self.repo.initialize()
+        result = self.repo.update_todo_status("999", "Done")
+        self.assertFalse(result)
+
+    def test_delete_todo(self):
+        """delete_todo() should remove the item from the repository."""
+        self.repo.initialize()
+        self.repo.add_todo("Task to delete")
+        todos = self.repo.get_all_todos()
+        todo_id = todos[0]['ID']
+
+        result = self.repo.delete_todo(todo_id)
+        self.assertTrue(result)
+
+        remaining = self.repo.get_all_todos()
+        self.assertEqual(len(remaining), 0)
+
+    def test_delete_preserves_other_todos(self):
+        """delete_todo() should only remove the specified item."""
+        self.repo.initialize()
+        self.repo.add_todo("Keep me")
+        self.repo.add_todo("Delete me")
+        todos = self.repo.get_all_todos()
+        delete_id = todos[1]['ID']
+
+        self.repo.delete_todo(delete_id)
+
+        remaining = self.repo.get_all_todos()
+        self.assertEqual(len(remaining), 1)
+        self.assertEqual(remaining[0]['Task'], 'Keep me')
 
 
 if __name__ == '__main__':

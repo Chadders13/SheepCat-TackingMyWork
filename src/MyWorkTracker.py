@@ -11,6 +11,8 @@ from csv_data_repository import CSVDataRepository
 from review_log_page import ReviewLogPage
 from settings_manager import SettingsManager
 from settings_page import SettingsPage
+from todo_repository import TodoRepository
+from todo_page import TodoPage
 import theme
  
 _NO_TICKET_LABEL = "(no ticket)"
@@ -33,6 +35,10 @@ class WorkLoggerApp:
         self.data_repository = CSVDataRepository(self.settings_manager.get_log_file_path())
         self.data_repository.initialize()
         
+        # Initialize todo repository
+        self.todo_repository = TodoRepository(self.settings_manager.get_todo_file_path())
+        self.todo_repository.initialize()
+        
         # State variables
         self.is_running = False
         self.hourly_tasks = []  # Track tasks for the current hour
@@ -54,6 +60,7 @@ class WorkLoggerApp:
         self._create_tracker_page()
         self._create_review_page()
         self._create_settings_page()
+        self._create_todo_page()
         
         # Show tracker page by default
         self.show_page("tracker")
@@ -77,6 +84,7 @@ class WorkLoggerApp:
         menubar.add_cascade(label="Pages", menu=pages_menu)
         pages_menu.add_command(label="Task Tracker", command=lambda: self.show_page("tracker"))
         pages_menu.add_command(label="Review Work Log", command=lambda: self.show_page("review"))
+        pages_menu.add_command(label="Todo List", command=lambda: self.show_page("todo"))
         pages_menu.add_command(label="Settings", command=lambda: self.show_page("settings"))
         pages_menu.add_separator()
         pages_menu.add_command(label="Exit", command=self.root.quit)
@@ -126,6 +134,15 @@ class WorkLoggerApp:
         btn_add_task.pack(pady=5)
         self.btn_add_task = btn_add_task
 
+        btn_todo = tk.Button(
+            page, text="Todo List", command=lambda: self.show_page("todo"),
+            bg=theme.SURFACE_BG, fg=theme.TEXT,
+            font=theme.FONT_BODY_BOLD, width=20,
+            relief='flat', cursor='hand2', padx=8, pady=6,
+        )
+        btn_todo.pack(pady=5)
+        self.btn_todo = btn_todo
+
         btn_stop = tk.Button(
             page, text="Stop / End Day", command=self.stop_tracking,
             bg=theme.RED, fg=theme.TEXT,
@@ -146,6 +163,11 @@ class WorkLoggerApp:
                             on_settings_changed=self._on_settings_changed)
         self.pages["settings"] = page
     
+    def _create_todo_page(self):
+        """Create the todo list page"""
+        page = TodoPage(self.container, self.todo_repository)
+        self.pages["todo"] = page
+    
     def _on_settings_changed(self):
         """Called after settings are saved; refreshes dependent state."""
         # Update the model info label on the tracker page
@@ -158,6 +180,14 @@ class WorkLoggerApp:
         
         # Update the review page to use the new repository
         self.pages["review"].data_repository = self.data_repository
+        
+        # Reinitialise the todo repository with the (possibly new) directory
+        new_todo_path = self.settings_manager.get_todo_file_path()
+        self.todo_repository = TodoRepository(new_todo_path)
+        self.todo_repository.initialize()
+        
+        # Update the todo page to use the new repository
+        self.pages["todo"].todo_repository = self.todo_repository
     
     def show_page(self, page_name):
         """
@@ -724,6 +754,11 @@ class WorkLoggerApp:
  
         self.root.deiconify()
         messagebox.showinfo("Hourly Check-in", f"Hour complete! {len(self.hourly_tasks)} task(s) logged. Add your next task.")
+        
+        # Ask if the user wants to see their Todo list
+        if messagebox.askyesno("Todo List", "Would you like to see your Todo list?"):
+            self.show_page("todo")
+        
         self.next_checkin_time = end_time + datetime.timedelta(
             minutes=self.settings_manager.get("checkin_interval_minutes"))
         

@@ -106,6 +106,11 @@ class SettingsManager:
         filename = f"daily_summary_{date_str}.md"
         return os.path.join(directory, filename)
 
+    def get_todo_file_path(self):
+        """Build the full todo list file path (fixed filename in the log directory)."""
+        directory = self.settings.get("log_file_directory", ".")
+        return os.path.join(directory, "todo_list.csv")
+
     def get_log_file_path(self):
         """Build the full log file path with optional date format applied to the filename."""
         directory = self.settings.get("log_file_directory", ".")
