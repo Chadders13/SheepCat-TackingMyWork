@@ -645,6 +645,14 @@ class WorkLoggerApp:
         return result
  
     def start_tracking(self):
+        # Cancel any existing timer before starting a new one
+        if self.timer_id:
+            self.root.after_cancel(self.timer_id)
+            self.timer_id = None
+        if self.countdown_id:
+            self.root.after_cancel(self.countdown_id)
+            self.countdown_id = None
+
         # Log start of day
         start_time = datetime.datetime.now()
         self.session_start_time = start_time  # Track session start
@@ -911,8 +919,13 @@ class WorkLoggerApp:
     def finalize_stop_ui(self):
         self.is_running = False
 
+        if self.timer_id:
+            self.root.after_cancel(self.timer_id)
+            self.timer_id = None
+
         if self.countdown_id:
             self.root.after_cancel(self.countdown_id)
+            self.countdown_id = None  
         
         self.countdown_label.config(text="")
         self.status_label.config(text="Stopped")
