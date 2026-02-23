@@ -205,3 +205,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
+# Worklogs and personal data
+work_log*.csv
+src/work_log*.csv
+src/todo_list.csv
+todo_list.csv
