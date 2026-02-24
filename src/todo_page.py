@@ -13,16 +13,18 @@ _PRIORITIES = ("High", "Medium", "Low")
 class TodoPage(tk.Frame):
     """Page for managing a personal todo/focus list."""
 
-    def __init__(self, parent, todo_repository: TodoRepository):
+    def __init__(self, parent, todo_repository: TodoRepository, on_archive=None):
         """
         Initialize the Todo page.
 
         Args:
             parent: Parent tkinter widget
             todo_repository: TodoRepository instance
+            on_archive: Optional callback invoked when the user clicks "Archive Done"
         """
         super().__init__(parent, bg=theme.WINDOW_BG)
         self.todo_repository = todo_repository
+        self.on_archive = on_archive
         self._create_widgets()
         self._load_todos()
 
@@ -96,6 +98,13 @@ class TodoPage(tk.Frame):
             btn_frame, text="Delete", command=self._delete_todo,
             bg=theme.RED, fg=theme.TEXT,
             font=theme.FONT_BODY, width=12, relief='flat', cursor='hand2',
+            padx=8, pady=4,
+        ).pack(side='left', padx=4)
+
+        tk.Button(
+            btn_frame, text="Archive Done", command=self._archive_done,
+            bg=theme.SURFACE_BG, fg=theme.TEXT,
+            font=theme.FONT_BODY, width=14, relief='flat', cursor='hand2',
             padx=8, pady=4,
         ).pack(side='left', padx=4)
 
@@ -266,6 +275,18 @@ class TodoPage(tk.Frame):
         self._load_todos()
 
     # ── Public API ─────────────────────────────────────────────────────────────
+
+    def _archive_done(self):
+        """Archive all Done tasks via the provided callback."""
+        if self.on_archive:
+            self.on_archive()
+            self._load_todos()
+            self.status_label.config(text="Done tasks archived.")
+        else:
+            messagebox.showinfo(
+                "Archiving Unavailable",
+                "Archiving is not configured. Please check your settings.",
+            )
 
     def refresh(self):
         """Refresh the page (called when navigating to this page)."""

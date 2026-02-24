@@ -275,5 +275,52 @@ class TestTodoRepository(unittest.TestCase):
         self.assertEqual(remaining[0]['Task'], 'Keep me')
 
 
+    def test_archive_done_todos(self):
+        """archive_done_todos() should write done items to a file and remove them."""
+        self.repo.initialize()
+        self.repo.add_todo("Done task", "High", "completed work")
+        self.repo.add_todo("Still pending", "Low", "")
+        todos = self.repo.get_all_todos()
+        self.repo.update_todo_status(todos[0]['ID'], "Done")
+
+        fd, archive_path = tempfile.mkstemp(suffix='.md')
+        os.close(fd)
+        os.remove(archive_path)
+        try:
+            count = self.repo.archive_done_todos(archive_path)
+            self.assertEqual(count, 1)
+
+            # Archive file should exist and contain the done task
+            self.assertTrue(os.path.exists(archive_path))
+            with open(archive_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            self.assertIn("Done task", content)
+            self.assertNotIn("Still pending", content)
+
+            # Active list should only contain the pending task
+            remaining = self.repo.get_all_todos()
+            self.assertEqual(len(remaining), 1)
+            self.assertEqual(remaining[0]['Task'], 'Still pending')
+        finally:
+            if os.path.exists(archive_path):
+                os.remove(archive_path)
+
+    def test_archive_done_todos_no_done_items(self):
+        """archive_done_todos() should return 0 when there are no done items."""
+        self.repo.initialize()
+        self.repo.add_todo("Pending task")
+
+        fd, archive_path = tempfile.mkstemp(suffix='.md')
+        os.close(fd)
+        os.remove(archive_path)
+        try:
+            count = self.repo.archive_done_todos(archive_path)
+            self.assertEqual(count, 0)
+            self.assertFalse(os.path.exists(archive_path))
+        finally:
+            if os.path.exists(archive_path):
+                os.remove(archive_path)
+
+
 if __name__ == '__main__':
     unittest.main()
