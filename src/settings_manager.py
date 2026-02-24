@@ -21,6 +21,7 @@ DEFAULT_SETTINGS = {
     "summary_save_to_file": False,
     "summary_file_directory": ".",
     "summary_file_date_format": "{yyyy-MM-dd}",
+    "onboarding_complete": False,
 }
 
 # Default API URLs for each supported provider
