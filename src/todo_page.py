@@ -222,15 +222,29 @@ class TodoPage(tk.Frame):
         # Days-of-week checkboxes (shown only for "Specific days")
         days_frame = tk.Frame(dialog, bg=theme.WINDOW_BG)
         day_vars = [tk.BooleanVar() for _ in WEEKDAY_NAMES]
+        day_checks = []
         for idx, name in enumerate(WEEKDAY_NAMES):
-            tk.Checkbutton(
+            cb = tk.Checkbutton(
                 days_frame, text=name,
                 variable=day_vars[idx],
                 font=theme.FONT_SMALL,
                 bg=theme.WINDOW_BG, fg=theme.TEXT,
                 selectcolor=theme.INPUT_BG,
                 activebackground=theme.WINDOW_BG, activeforeground=theme.TEXT,
-            ).pack(side='left', padx=2)
+            )
+            cb.grid(row=0, column=idx, padx=2, pady=1, sticky='w')
+            day_checks.append(cb)
+
+        def _rewrap_days(event=None):
+            frame_width = days_frame.winfo_width()
+            if frame_width <= 1:
+                return
+            cb_width = max(cb.winfo_reqwidth() + 4 for cb in day_checks)
+            cols = max(1, frame_width // cb_width)
+            for i, cb in enumerate(day_checks):
+                cb.grid(row=i // cols, column=i % cols, padx=2, pady=1, sticky='w')
+
+        days_frame.bind('<Configure>', _rewrap_days)
 
         def _on_repeat_change(*_):
             if repeat_var.get() == "Specific days":
