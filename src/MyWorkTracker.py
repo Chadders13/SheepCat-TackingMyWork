@@ -166,9 +166,23 @@ class WorkLoggerApp:
     
     def _create_todo_page(self):
         """Create the todo list page"""
-        page = TodoPage(self.container, self.todo_repository)
+        page = TodoPage(self.container, self.todo_repository,
+                        on_archive=self._archive_done_todos)
         self.pages["todo"] = page
     
+    def _archive_done_todos(self):
+        """Archive done todo items if the setting is enabled."""
+        if not self.settings_manager.get("archive_done_todos"):
+            return
+        archive_path = self.settings_manager.get_archive_file_path()
+        count = self.todo_repository.archive_done_todos(archive_path)
+        if count:
+            print(f"Archived {count} done todo(s) to {archive_path}")
+            # Refresh the todo page if it is currently visible
+            todo_page = self.pages.get("todo")
+            if todo_page:
+                todo_page.refresh()
+
     def _on_settings_changed(self):
         """Called after settings are saved; refreshes dependent state."""
         # Update the model info label on the tracker page
@@ -657,6 +671,10 @@ class WorkLoggerApp:
         start_time = datetime.datetime.now()
         self.session_start_time = start_time  # Track session start
         self.log_day_marker(start_time, "DAY STARTED")
+
+        # Archive done todos if trigger is "daily"
+        if self.settings_manager.get("archive_trigger") == "daily":
+            self._archive_done_todos()
         
         self.is_running = True
         self.btn_start.config(state=tk.DISABLED)
@@ -871,6 +889,13 @@ class WorkLoggerApp:
         if result['saved'] and result['summary']:
             # Save the edited summary to CSV
             self.save_day_summary(result['summary'], tickets, end_time)
+            # Archive done todos if trigger is "on_summary"
+            if self.settings_manager.get("archive_trigger") == "on_summary":
+                self._archive_done_todos()
+
+        # Archive done todos at day end if trigger is "daily"
+        if self.settings_manager.get("archive_trigger") == "daily":
+            self._archive_done_todos()
         
         # Log end of day marker
         self.log_day_marker(end_time, "DAY ENDED")
