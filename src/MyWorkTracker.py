@@ -186,8 +186,8 @@ class WorkLoggerApp:
 
         if onboarding_done:
             # Subsequent launches: just verify the connection is still reachable.
-            success, _ = check_connection(base_url)
-            if not success:
+            result = check_connection(base_url)
+            if not result.success:
                 conn = EngineConnectionDialog(self.root, base_url)
                 if conn.result is None:
                     # User cancelled — app continues without a working engine

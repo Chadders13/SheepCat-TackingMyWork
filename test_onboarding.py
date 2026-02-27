@@ -8,6 +8,7 @@ import sys
 import os
 import unittest
 from unittest.mock import MagicMock, patch, call
+from typing import List, Dict
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
@@ -19,7 +20,7 @@ from ollama_client import check_connection, pull_model, RECOMMENDED_MODELS
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_response(status_code: int, json_data: dict):
+def _make_response(status_code: int, json_data: Dict):
     """Build a minimal mock requests.Response."""
     resp = MagicMock()
     resp.status_code = status_code
@@ -27,7 +28,7 @@ def _make_response(status_code: int, json_data: dict):
     return resp
 
 
-def _make_streaming_response(lines: list[dict]):
+def _make_streaming_response(lines: List[Dict]):
     """Build a mock streaming response whose iter_lines yields JSON strings."""
     resp = MagicMock()
     resp.status_code = 200
@@ -51,9 +52,9 @@ class TestCheckConnection(unittest.TestCase):
                 {"name": "deepseek-r1:8b"},
             ]
         })
-        success, models = check_connection("http://localhost:11434")
-        self.assertTrue(success)
-        self.assertEqual(models, ["llama3.2:3b", "deepseek-r1:8b"])
+        result = check_connection("http://localhost:11434")
+        self.assertTrue(result.success)
+        self.assertEqual(result.models, ["llama3.2:3b", "deepseek-r1:8b"])
         mock_get.assert_called_once_with(
             "http://localhost:11434/api/tags", timeout=5
         )
@@ -61,15 +62,15 @@ class TestCheckConnection(unittest.TestCase):
     @patch('ollama_client.requests.get')
     def test_non_200_returns_false(self, mock_get):
         mock_get.return_value = _make_response(503, {})
-        success, models = check_connection("http://localhost:11434")
-        self.assertFalse(success)
-        self.assertEqual(models, [])
+        result = check_connection("http://localhost:11434")
+        self.assertFalse(result.success)
+        self.assertEqual(result.models, [])
 
     @patch('ollama_client.requests.get', side_effect=ConnectionError("refused"))
     def test_exception_returns_false(self, _mock_get):
-        success, models = check_connection("http://localhost:11434")
-        self.assertFalse(success)
-        self.assertEqual(models, [])
+        result = check_connection("http://localhost:11434")
+        self.assertFalse(result.success)
+        self.assertEqual(result.models, [])
 
     @patch('ollama_client.requests.get')
     def test_trailing_slash_stripped_from_base_url(self, mock_get):
@@ -82,9 +83,9 @@ class TestCheckConnection(unittest.TestCase):
     @patch('ollama_client.requests.get')
     def test_empty_models_list(self, mock_get):
         mock_get.return_value = _make_response(200, {"models": []})
-        success, models = check_connection("http://localhost:11434")
-        self.assertTrue(success)
-        self.assertEqual(models, [])
+        result = check_connection("http://localhost:11434")
+        self.assertTrue(result.success)
+        self.assertEqual(result.models, [])
 
 
 # ---------------------------------------------------------------------------

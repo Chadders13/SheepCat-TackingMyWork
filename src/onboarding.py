@@ -9,9 +9,14 @@ Implements three sequential dialogs shown on first launch:
 3. ModelPullDialog         – streams the pull progress with a progress bar.
 """
 
+import os
+import subprocess
+import tempfile
 import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
+
+import requests
 
 import theme
 from ollama_client import (
@@ -54,6 +59,7 @@ class EngineConnectionDialog(tk.Toplevel):
         self._base_url = base_url
 
         self._build_ui()
+        self.after(0, self._center_on_parent, parent)
         self._try_connect(base_url)
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -121,6 +127,15 @@ class EngineConnectionDialog(tk.Toplevel):
         self._retry_btn.pack(side="left", padx=6)
         self._retry_btn.pack_forget()  # hidden initially
 
+        self._install_btn = tk.Button(
+            btn_frame, text="Download & Install Ollama",
+            command=self._on_install_ollama,
+            bg=theme.PRIMARY, fg=theme.TEXT,
+            font=theme.FONT_BODY, width=22, relief="flat", cursor="hand2",
+        )
+        self._install_btn.pack(side="left", padx=6)
+        self._install_btn.pack_forget()  # hidden initially
+
         tk.Button(
             btn_frame, text="Cancel", command=self._on_close,
             bg=theme.SURFACE_BG, fg=theme.TEXT,
@@ -139,21 +154,23 @@ class EngineConnectionDialog(tk.Toplevel):
         ).start()
 
     def _connect_worker(self, base_url: str):
-        success, models = check_connection(base_url)
-        self.after(0, self._on_connect_result, success, models, base_url)
+        result = check_connection(base_url)
+        self.after(0, self._on_connect_result, result, base_url)
 
-    def _on_connect_result(self, success: bool, models: list, base_url: str):
-        if success:
+    def _on_connect_result(self, result, base_url: str):
+        if result.success:
             self.result = base_url
-            self.available_models = models
+            self.available_models = result.models
             self._status_var.set("✓ Connected successfully!")
             self.after(600, self.destroy)
         else:
             self._status_var.set(
-                "✗ Could not connect.  Enter a custom host/port and try again."
+                "✗ Could not connect.  Enter a custom host/port and try again,"
+                " or download and install Ollama below."
             )
             self._custom_frame.pack(pady=6)
             self._retry_btn.pack(side="left", padx=6)
+            self._install_btn.pack(side="left", padx=6)
 
     def _on_retry(self):
         host = self._host_var.get().strip()
@@ -171,6 +188,65 @@ class EngineConnectionDialog(tk.Toplevel):
     def _on_close(self):
         self.result = None
         self.destroy()
+
+    # ------------------------------------------------------------------
+    # Positioning
+    # ------------------------------------------------------------------
+
+    def _center_on_parent(self, parent):
+        """Reposition this dialog so it is centred over *parent*."""
+        self.update_idletasks()
+        dw, dh = self.winfo_width(), self.winfo_height()
+        pw, ph = parent.winfo_width(), parent.winfo_height()
+        px, py = parent.winfo_rootx(), parent.winfo_rooty()
+        x = max(0, px + (pw - dw) // 2)
+        y = max(0, py + (ph - dh) // 2)
+        self.geometry(f"+{x}+{y}")
+
+    # ------------------------------------------------------------------
+    # Ollama download & install
+    # ------------------------------------------------------------------
+
+    def _on_install_ollama(self):
+        """Kick off a background download of the Ollama installer."""
+        self._install_btn.config(state=tk.DISABLED, text="Downloading…")
+        self._retry_btn.pack_forget()
+        self._status_var.set("Downloading Ollama installer — please wait…")
+        threading.Thread(target=self._install_worker, daemon=True).start()
+
+    def _install_worker(self):
+        """Background thread: download OllamaSetup.exe then launch it."""
+        url = "https://ollama.com/download/OllamaSetup.exe"
+        dest = os.path.join(tempfile.gettempdir(), "OllamaSetup.exe")
+        try:
+            response = requests.get(url, stream=True, timeout=120)
+            response.raise_for_status()
+            with open(dest, "wb") as fh:
+                for chunk in response.iter_content(chunk_size=65536):
+                    if chunk:
+                        fh.write(chunk)
+            self.after(0, self._launch_ollama_installer, dest)
+        except Exception as exc:
+            self.after(0, self._on_install_error, str(exc))
+
+    def _launch_ollama_installer(self, path: str):
+        """Launch the downloaded installer and update the UI."""
+        subprocess.Popen([path])
+        self._status_var.set(
+            "Ollama installer launched — complete the installation,"
+            " then click Connect."
+        )
+        self._install_btn.config(text="Installer Launched", state=tk.DISABLED)
+        self._retry_btn.config(text="Connect")
+        self._retry_btn.pack(side="left", padx=6)
+
+    def _on_install_error(self, error: str):
+        """Called when the Ollama download fails."""
+        self._status_var.set(f"Download failed: {error}")
+        self._install_btn.config(
+            state=tk.NORMAL, text="Download & Install Ollama"
+        )
+        self._retry_btn.pack(side="left", padx=6)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

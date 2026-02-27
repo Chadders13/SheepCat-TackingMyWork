@@ -1,0 +1,179 @@
+# Release – Build & Publish Installer
+#
+# Triggered when a GitHub Release is published (e.g. tag v1.2.0).
+#
+# This workflow:
+#   1. Extracts the version from the release tag
+#   2. Bumps version numbers across all project files
+#   3. Runs the full test suite
+#   4. Builds the app with PyInstaller
+#   5. Builds the Windows installer with Inno Setup
+#   6. Uploads the installer to the GitHub Release as an asset
+#   7. Commits the updated version files and pushes to the `release` branch
+#   8. Auto-generates release notes from commits
+
+name: Release
+
+on:
+  release:
+    types: [published]
+
+# Needed so the workflow can push to the release branch and upload assets
+permissions:
+  contents: write
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # 1. Run the test suite first — fail fast before building
+  #    Runs on Linux (1x cost) since tests don't need Windows.
+  # ─────────────────────────────────────────────────────────────────────────
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run unit tests
+        run: |
+          python -m unittest test_data_repository -v
+          python -m unittest test_onboarding -v
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 2. Build the installer and publish artifacts
+  #    Must run on Windows — PyInstaller can only build for the host OS,
+  #    and Inno Setup is Windows-only.  (2x cost vs Linux runners)
+  # ─────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build Installer
+    needs: test
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Full history for release notes generation
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ── Version Bump ──────────────────────────────────────────────────
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: |
+          # Strip the leading 'v' from the tag (e.g. v1.2.0 → 1.2.0)
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      - name: Bump version numbers
+        run: python scripts/bump_version.py ${{ steps.version.outputs.version }}
+
+      # ── Build Application ─────────────────────────────────────────────
+      - name: Build with PyInstaller
+        run: pyinstaller SheepCat.spec
+
+      - name: Verify build output
+        run: |
+          if (!(Test-Path "dist\SheepCat\SheepCat.exe")) {
+            Write-Error "PyInstaller build failed — SheepCat.exe not found"
+            exit 1
+          }
+          Write-Host "Build successful: dist\SheepCat\SheepCat.exe"
+
+      # ── Build Installer ───────────────────────────────────────────────
+      - name: Build Inno Setup installer
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.4
+        with:
+          path: installer/SheepCat.iss
+          options: /O"installer/Output"
+
+      - name: Verify installer output
+        shell: pwsh
+        run: |
+          $installerName = "SheepCatSetup_${{ steps.version.outputs.version }}.exe"
+          $installerPath = "installer\Output\$installerName"
+          if (!(Test-Path $installerPath)) {
+            Write-Error "Inno Setup build failed — $installerName not found"
+            exit 1
+          }
+          Write-Host "Installer built: $installerPath"
+          # Store the filename for later steps
+          echo "INSTALLER_NAME=$installerName" >> $env:GITHUB_ENV
+
+      # ── Upload to GitHub Release ──────────────────────────────────────
+      - name: Upload installer to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: installer/Output/${{ env.INSTALLER_NAME }}
+
+      # ── Generate Release Notes ────────────────────────────────────────
+      - name: Generate release notes
+        id: release_notes
+        shell: bash
+        run: |
+          python scripts/generate_release_notes.py \
+            --version "${{ steps.version.outputs.version }}" \
+            --output "RELEASE_NOTES.md"
+          echo "Generated RELEASE_NOTES.md"
+
+      - name: Update release body with notes
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES.md
+
+      # ── Upload build artifacts (for debugging / manual download) ──────
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SheepCat-Installer-${{ steps.version.outputs.version }}
+          path: installer/Output/${{ env.INSTALLER_NAME }}
+          retention-days: 90
+
+      # ── Push to release branch ────────────────────────────────────────
+      - name: Push to release branch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Stage the version-bumped files
+          git add VERSION installer/SheepCat.iss
+
+          # Copy installer into a tracked directory for the release branch
+          mkdir -p releases
+          cp "installer/Output/${{ env.INSTALLER_NAME }}" releases/
+          git add releases/
+
+          # Also keep a RELEASE_NOTES.md in the release branch
+          git add RELEASE_NOTES.md
+
+          git commit -m "release: v${VERSION} — bump version & add installer"
+
+          # Force-push to the release branch (keeps it always at latest release)
+          git push origin HEAD:release --force

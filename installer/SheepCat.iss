@@ -7,17 +7,16 @@
 ;        pyinstaller SheepCat.spec
 ;      This produces the deployment folder at  dist\SheepCat\
 ;
-;   2. Download the official Ollama installer and place it at:
-;        installer\OllamaSetup.exe
-;      (available from https://ollama.com/download/windows)
-;
-;   3. Compile this script with Inno Setup 6+ (https://jrsoftware.org/isinfo.php):
+;   2. Compile this script with Inno Setup 6+ (https://jrsoftware.org/isinfo.php):
 ;        iscc installer\SheepCat.iss
+;
+; The installer will download the Ollama AI engine at install time if the
+; user opts in (no need to bundle OllamaSetup.exe).
 ;
 ; The resulting installer is placed in  installer\Output\
 
 #define MyAppName      "SheepCat - Tracking My Work"
-#define MyAppVersion   "1.0.0"
+#define MyAppVersion   "0.2.0"
 #define MyAppPublisher "SheepCat"
 #define MyAppURL       "https://github.com/Chadders13/SheepCat-TrackingMyWork"
 #define MyAppExeName   "SheepCat.exe"
@@ -26,8 +25,8 @@
 ; Relative paths are resolved relative to the current working directory when
 ; the Inno Setup compiler (iscc) is invoked.  Run from the repo root:
 ;   iscc installer\SheepCat.iss
-#define SrcAppDir      "dist\SheepCat"
-#define OllamaSetup    "OllamaSetup.exe"
+#define SrcAppDir      "..\dist\SheepCat"
+#define OllamaUrl      "https://ollama.com/download/OllamaSetup.exe"
 
 [Setup]
 AppId={{A3F1C2D4-5E6B-7890-ABCD-EF1234567890}
@@ -126,11 +125,13 @@ begin
   Result := RbInstallOllama.Checked;
 end;
 
-{ Run OllamaSetup.exe silently after the main app files have been installed }
+{ Download and run OllamaSetup.exe after the main app files have been installed.
+  Uses PowerShell to download so we don't need any Inno Setup plugins. }
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   TempDir:    String;
   OllamaExe:  String;
+  PsCmd:      String;
   ResultCode: Integer;
 begin
   if (CurStep = ssPostInstall) and ShouldInstallOllama then
@@ -138,36 +139,47 @@ begin
     TempDir   := ExpandConstant('{tmp}');
     OllamaExe := TempDir + '\OllamaSetup.exe';
 
-    { Extract the bundled Ollama installer to the temp directory }
-    ExtractTemporaryFile('OllamaSetup.exe');
+    { Download the Ollama installer using PowerShell }
+    PsCmd := '-NoProfile -ExecutionPolicy Bypass -Command "' +
+             '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ' +
+             'Invoke-WebRequest -Uri ''{#OllamaUrl}'' -OutFile ''' + OllamaExe + ''' -UseBasicParsing"';
 
-    { Run silently; /VERYSILENT suppresses all UI and progress windows }
-    if not Exec(OllamaExe, '/VERYSILENT /NORESTART', '', SW_HIDE,
-                ewWaitUntilTerminated, ResultCode) then
+    WizardForm.StatusLabel.Caption := 'Downloading Ollama AI engine...';
+    WizardForm.StatusLabel.Update;
+
+    Exec('powershell.exe', PsCmd, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+    if FileExists(OllamaExe) then
+    begin
+      WizardForm.StatusLabel.Caption := 'Installing Ollama AI engine...';
+      WizardForm.StatusLabel.Update;
+
+      { Run silently; /VERYSILENT suppresses all UI and progress windows }
+      if not Exec(OllamaExe, '/VERYSILENT /NORESTART', '', SW_HIDE,
+                  ewWaitUntilTerminated, ResultCode) then
+      begin
+        MsgBox(
+          'Ollama installation could not be started automatically.' + #13#10 +
+          'Please install Ollama manually from https://ollama.com/download/windows',
+          mbInformation, MB_OK
+        );
+      end;
+    end
+    else
     begin
       MsgBox(
-        'Ollama installation could not be started automatically.' + #13#10 +
-        'Please install Ollama manually from https://ollama.com/download/windows',
+        'Could not download the Ollama installer.' + #13#10 +
+        'Please check your internet connection and install Ollama manually from ' +
+        'https://ollama.com/download/windows',
         mbInformation, MB_OK
       );
     end;
   end;
 end;
 
-; ---------------------------------------------------------------------------
-; Application files
-; ---------------------------------------------------------------------------
 [Files]
 ; --- Main application (PyInstaller --onedir output) ---
-Source: "{#SrcAppDir}\*"; \
-  DestDir: "{app}"; \
-  Flags: ignoreversion recursesubdirs createallsubdirs; \
-  Excludes: "*.pyc"
-
-; --- Bundled Ollama installer (extracted to {tmp} at runtime) ---
-Source: "{#OllamaSetup}"; \
-  DestDir: "{tmp}"; \
-  Flags: deleteafterinstall
+Source: "{#SrcAppDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc"
 
 ; ---------------------------------------------------------------------------
 ; Start Menu / Desktop shortcuts

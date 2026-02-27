@@ -8,6 +8,7 @@ Provides helpers for:
 """
 
 import json
+from dataclasses import dataclass, field
 import requests
 
 
@@ -33,17 +34,23 @@ RECOMMENDED_MODELS = [
 ]
 
 
-def check_connection(base_url: str) -> tuple[bool, list]:
+@dataclass
+class ConnectionResult:
+    """Response object for an Ollama connection check."""
+    success: bool
+    models: list = field(default_factory=list)
+
+
+def check_connection(base_url: str) -> ConnectionResult:
     """Probe the Ollama /api/tags endpoint.
 
     Args:
         base_url: Root URL of the Ollama instance, e.g. ``http://localhost:11434``.
 
     Returns:
-        A ``(success, models)`` tuple where *success* is ``True`` when the
-        server responded with HTTP 200 and *models* is a list of model name
-        strings available on the server.  On failure both return values are
-        ``(False, [])``.
+        A :class:`ConnectionResult` with ``success`` set to ``True`` when the
+        server responded with HTTP 200 and ``models`` containing a list of
+        model name strings available on the server.
     """
     try:
         url = base_url.rstrip("/") + "/api/tags"
@@ -51,10 +58,10 @@ def check_connection(base_url: str) -> tuple[bool, list]:
         if response.status_code == 200:
             data = response.json()
             models = [m.get("name", "") for m in data.get("models", [])]
-            return True, models
-        return False, []
+            return ConnectionResult(success=True, models=models)
+        return ConnectionResult(success=False)
     except Exception:
-        return False, []
+        return ConnectionResult(success=False)
 
 
 def pull_model(base_url: str, model_name: str, progress_callback=None) -> bool:
