@@ -14,6 +14,8 @@ from settings_page import SettingsPage
 from todo_repository import TodoRepository
 from todo_page import TodoPage
 import theme
+from onboarding import run_onboarding
+from ollama_client import check_connection, DEFAULT_OLLAMA_BASE_URL
  
 _NO_TICKET_LABEL = "(no ticket)"
 
@@ -65,6 +67,9 @@ class WorkLoggerApp:
         
         # Show tracker page by default
         self.show_page("tracker")
+
+        # Run engine handshake / onboarding after window is rendered
+        self.root.after(150, self._run_onboarding)
         
         # Check for an unfinished session on startup
         self._update_continue_button()
@@ -165,6 +170,51 @@ class WorkLoggerApp:
         btn_stop.pack(pady=5)
         self.btn_stop = btn_stop
     
+    def _run_onboarding(self):
+        """Engine handshake and (first-launch) model selection.
+
+        On every startup the connection to the configured Ollama endpoint is
+        tested.  If the test fails an ``EngineConnectionDialog`` is shown so
+        the user can point the app at a different host/port.
+
+        On first launch (``onboarding_complete == False``) a model selection
+        dialog is also shown and, if the chosen model is not yet present on the
+        server, a streaming pull dialog downloads it before opening the main
+        tracking view.
+        """
+        from onboarding import (
+            EngineConnectionDialog,
+            ModelSelectionDialog,
+            ModelPullDialog,
+            _base_url_from_api_url,
+            _update_api_url,
+        )
+
+        sm = self.settings_manager
+        saved_url = sm.get("ai_api_url", "")
+        base_url = _base_url_from_api_url(saved_url) if saved_url else DEFAULT_OLLAMA_BASE_URL
+
+        onboarding_done = sm.get("onboarding_complete", False)
+
+        if onboarding_done:
+            # Subsequent launches: just verify the connection is still reachable.
+            result = check_connection(base_url)
+            if not result.success:
+                conn = EngineConnectionDialog(self.root, base_url)
+                if conn.result is None:
+                    # User cancelled — app continues without a working engine
+                    return
+                _update_api_url(sm, conn.result)
+            return
+
+        # ── First launch: full onboarding ────────────────────────────
+        completed = run_onboarding(self.root, sm)
+        if completed:
+            sm.set("onboarding_complete", True)
+            sm.save()
+            # Refresh the model label on the tracker page
+            self.info_label.config(text=f"Model: {sm.get('ai_model')}")
+
     def _create_review_page(self):
         """Create the review log page"""
         page = ReviewLogPage(self.container, self.data_repository)

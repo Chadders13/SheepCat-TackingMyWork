@@ -278,7 +278,7 @@ class TestTodoRepository(unittest.TestCase):
         self.assertTrue(os.path.exists(self.csv_path))
         with open(self.csv_path, 'r') as f:
             headers = f.readline().strip()
-        self.assertEqual(headers, "ID,Task,Priority,Status,Created,Notes,Repeat,Days,CommittedAt")
+        self.assertEqual(headers, "ID,Task,Priority,Status,Created,Notes,Repeat,Days,CommittedAt,LastCompleted")
 
     def test_add_and_get_todos(self):
         """add_todo() should persist items retrievable by get_all_todos()."""

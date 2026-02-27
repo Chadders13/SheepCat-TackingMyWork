@@ -21,6 +21,7 @@ DEFAULT_SETTINGS = {
     "summary_save_to_file": False,
     "summary_file_directory": ".",
     "summary_file_date_format": "{yyyy-MM-dd}",
+    "onboarding_complete": False,
     "archive_done_todos": True,
     "archive_trigger": "daily",  # "daily" or "on_summary"
     "archive_file_directory": ".",
