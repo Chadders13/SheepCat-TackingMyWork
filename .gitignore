@@ -211,5 +211,6 @@ __marimo__/
 # Worklogs and personal data
 work_log*.csv
 src/work_log*.csv
-src/todo_list.csv
-todo_list.csv
+src/todo_list*.csv
+todo_list*.csv
+sheepcat_settings.*.json

@@ -22,6 +22,9 @@ DEFAULT_SETTINGS = {
     "summary_file_directory": ".",
     "summary_file_date_format": "{yyyy-MM-dd}",
     "onboarding_complete": False,
+    "archive_done_todos": True,
+    "archive_trigger": "daily",  # "daily" or "on_summary"
+    "archive_file_directory": ".",
 }
 
 # Default API URLs for each supported provider
@@ -106,6 +109,11 @@ class SettingsManager:
 
         filename = f"daily_summary_{date_str}.md"
         return os.path.join(directory, filename)
+
+    def get_archive_file_path(self):
+        """Build the full todo archive (achievements) file path."""
+        directory = self.settings.get("archive_file_directory", ".")
+        return os.path.join(directory, "todo_archive.md")
 
     def get_todo_file_path(self):
         """Build the full todo list file path (fixed filename in the log directory)."""

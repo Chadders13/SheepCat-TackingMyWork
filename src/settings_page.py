@@ -258,6 +258,51 @@ class SettingsPage(tk.Frame):
         self.summary_dir_var.trace_add('write', self._update_summary_preview)
         self.summary_date_format_combo.bind('<<ComboboxSelected>>', lambda e: self._update_summary_preview())
 
+        # ---- Todo Archiving Settings ----
+        tk.Label(
+            form, text="Todo Archiving Settings",
+            font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
+        ).grid(row=18, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
+
+        self.archive_done_var = tk.BooleanVar()
+        tk.Checkbutton(
+            form, text="Archive done todos automatically",
+            variable=self.archive_done_var,
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.TEXT,
+            selectcolor=theme.INPUT_BG, activebackground=theme.WINDOW_BG,
+            command=self._on_archive_toggled,
+        ).grid(row=19, column=0, columnspan=3, sticky='w', padx=15, pady=5)
+
+        tk.Label(
+            form, text="Archive trigger:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=20, column=0, sticky='w', padx=15, pady=5)
+        self.archive_trigger_var = tk.StringVar()
+        self.archive_trigger_combo = ttk.Combobox(
+            form, textvariable=self.archive_trigger_var,
+            values=["Daily (on day start/end)", "After end-of-day summary"],
+            width=30, state='readonly',
+        )
+        self.archive_trigger_combo.grid(row=20, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+
+        tk.Label(
+            form, text="Archive File Directory:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=21, column=0, sticky='w', padx=15, pady=5)
+        self.archive_dir_var = tk.StringVar()
+        archive_dir_frame = tk.Frame(form, bg=theme.WINDOW_BG)
+        archive_dir_frame.grid(row=21, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        self.archive_dir_entry = tk.Entry(
+            archive_dir_frame, textvariable=self.archive_dir_var, width=40,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        )
+        self.archive_dir_entry.pack(side='left')
+        self.archive_dir_browse_btn = tk.Button(
+            archive_dir_frame, text="Browse...", command=self._browse_archive_directory,
+            bg=theme.SURFACE_BG, fg=theme.TEXT, relief='flat', cursor='hand2',
+        )
+        self.archive_dir_browse_btn.pack(side='left', padx=5)
+
         # ---- Buttons ----
         button_frame = tk.Frame(self, bg=theme.WINDOW_BG)
         button_frame.pack(pady=15)
@@ -300,6 +345,21 @@ class SettingsPage(tk.Frame):
         directory = filedialog.askdirectory(title="Select Summary File Directory")
         if directory:
             self.summary_dir_var.set(directory)
+
+    def _browse_archive_directory(self):
+        """Open a directory chooser and populate the archive directory field."""
+        directory = filedialog.askdirectory(title="Select Archive File Directory")
+        if directory:
+            self.archive_dir_var.set(directory)
+
+    def _on_archive_toggled(self):
+        """Enable or disable the archive trigger and directory widgets."""
+        enabled = self.archive_done_var.get()
+        state_entry = tk.NORMAL if enabled else tk.DISABLED
+        state_combo = 'readonly' if enabled else tk.DISABLED
+        self.archive_dir_entry.config(state=state_entry)
+        self.archive_dir_browse_btn.config(state=state_entry)
+        self.archive_trigger_combo.config(state=state_combo)
 
     def _on_summary_save_toggled(self):
         """Enable or disable the summary directory widgets based on the checkbox."""
@@ -394,6 +454,14 @@ class SettingsPage(tk.Frame):
         # Apply enabled/disabled state based on checkbox
         self._on_summary_save_toggled()
 
+        # Archive settings
+        self.archive_done_var.set(bool(sm.get("archive_done_todos")))
+        trigger_value = sm.get("archive_trigger", "daily")
+        trigger_label = "Daily (on day start/end)" if trigger_value == "daily" else "After end-of-day summary"
+        self.archive_trigger_var.set(trigger_label)
+        self.archive_dir_var.set(sm.get("archive_file_directory", "."))
+        self._on_archive_toggled()
+
         self._update_preview()
         self._update_summary_preview()
 
@@ -431,6 +499,11 @@ class SettingsPage(tk.Frame):
         sm.set("summary_save_to_file", self.summary_save_var.get())
         sm.set("summary_file_directory", self.summary_dir_var.get().strip())
         sm.set("summary_file_date_format", self._get_summary_date_format_value())
+
+        sm.set("archive_done_todos", self.archive_done_var.get())
+        trigger_label = self.archive_trigger_var.get()
+        sm.set("archive_trigger", "on_summary" if "summary" in trigger_label.lower() else "daily")
+        sm.set("archive_file_directory", self.archive_dir_var.get().strip() or ".")
 
         if sm.save():
             self.status_label.config(text="Settings saved successfully!", fg=theme.GREEN)
