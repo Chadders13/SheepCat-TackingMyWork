@@ -9,7 +9,7 @@
 #   4. Builds the app with PyInstaller
 #   5. Builds the Windows installer with Inno Setup
 #   6. Uploads the installer to the GitHub Release as an asset
-#   7. Commits the updated version files and pushes to the `release` branch
+#   7. Commits the updated version files and pushes to the `release/build/{version}` branch
 #   8. Auto-generates release notes from commits
 
 name: Release
@@ -175,5 +175,5 @@ jobs:
 
           git commit -m "release: v${VERSION} — bump version & add installer"
 
-          # Force-push to the release branch (keeps it always at latest release)
-          git push origin HEAD:release --force
+          # Push to a versioned release branch (e.g. release/build/1.2.0)
+          git push origin HEAD:refs/heads/release/build/${VERSION}
