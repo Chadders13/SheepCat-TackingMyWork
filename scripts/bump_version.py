@@ -11,7 +11,7 @@ Example:
 Files updated:
     - VERSION
     - installer/SheepCat.iss   (#define MyAppVersion)
-    - SheepCat.spec            (not currently versioned — left for future)
+    - SheepCat.spec            (not currently versioned - left for future)
 """
 import argparse
 import os
@@ -39,7 +39,7 @@ def update_version_file(new_version: str) -> None:
     """Write the new version to the VERSION file."""
     with open(VERSION_FILE, "w", encoding="utf-8") as f:
         f.write(new_version + "\n")
-    print(f"  ✓ VERSION → {new_version}")
+    print(f"  [OK] VERSION -> {new_version}")
 
 
 def update_iss_file(new_version: str) -> None:
@@ -51,12 +51,12 @@ def update_iss_file(new_version: str) -> None:
     new_content, count = re.subn(pattern, rf'\1"{new_version}"', content)
 
     if count == 0:
-        print(f"  ✗ Could not find MyAppVersion in {ISS_FILE}", file=sys.stderr)
+        print(f"  [FAIL] Could not find MyAppVersion in {ISS_FILE}", file=sys.stderr)
         sys.exit(1)
 
     with open(ISS_FILE, "w", encoding="utf-8") as f:
         f.write(new_content)
-    print(f"  ✓ installer/SheepCat.iss → {new_version}")
+    print(f"  [OK] installer/SheepCat.iss -> {new_version}")
 
 
 def main() -> None:
@@ -71,7 +71,7 @@ def main() -> None:
         sys.exit(1)
 
     current = read_current_version()
-    print(f"Bumping version: {current} → {new_version}\n")
+    print(f"Bumping version: {current} -> {new_version}\n")
 
     update_version_file(new_version)
     update_iss_file(new_version)
