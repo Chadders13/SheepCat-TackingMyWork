@@ -16,7 +16,7 @@
 ; The resulting installer is placed in  installer\Output\
 
 #define MyAppName      "SheepCat - Tracking My Work"
-#define MyAppVersion   "0.1.1"
+#define MyAppVersion   "01.00.02"
 #define MyAppPublisher "SheepCat"
 #define MyAppURL       "https://github.com/Chadders13/SheepCat-TrackingMyWork"
 #define MyAppExeName   "SheepCat.exe"
