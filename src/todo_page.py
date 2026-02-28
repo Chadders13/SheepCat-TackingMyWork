@@ -76,38 +76,38 @@ class TodoPage(tk.Frame):
         btn_frame = tk.Frame(self, bg=theme.WINDOW_BG)
         btn_frame.pack(fill='x', padx=10, pady=8)
 
-        tk.Button(
+        theme.RoundedButton(
             btn_frame, text="Add Task", command=self._add_todo,
             bg=theme.PRIMARY, fg=theme.TEXT,
-            font=theme.FONT_BODY_BOLD, width=12, relief='flat', cursor='hand2',
+            font=theme.FONT_BODY_BOLD, width=12, cursor='hand2',
             padx=8, pady=4,
         ).pack(side='left', padx=4)
 
-        tk.Button(
+        theme.RoundedButton(
             btn_frame, text="Mark Done", command=self._mark_done,
             bg=theme.GREEN, fg=theme.WINDOW_BG,
-            font=theme.FONT_BODY, width=12, relief='flat', cursor='hand2',
+            font=theme.FONT_BODY, width=12, cursor='hand2',
             padx=8, pady=4,
         ).pack(side='left', padx=4)
 
-        tk.Button(
+        theme.RoundedButton(
             btn_frame, text="Mark Pending", command=self._mark_pending,
             bg=theme.ACCENT, fg=theme.WINDOW_BG,
-            font=theme.FONT_BODY, width=12, relief='flat', cursor='hand2',
+            font=theme.FONT_BODY, width=12, cursor='hand2',
             padx=8, pady=4,
         ).pack(side='left', padx=4)
 
-        tk.Button(
+        theme.RoundedButton(
             btn_frame, text="Delete", command=self._delete_todo,
             bg=theme.RED, fg=theme.TEXT,
-            font=theme.FONT_BODY, width=12, relief='flat', cursor='hand2',
+            font=theme.FONT_BODY, width=12, cursor='hand2',
             padx=8, pady=4,
         ).pack(side='left', padx=4)
 
-        tk.Button(
+        theme.RoundedButton(
             btn_frame, text="Archive Done", command=self._archive_done,
             bg=theme.SURFACE_BG, fg=theme.TEXT,
-            font=theme.FONT_BODY, width=14, relief='flat', cursor='hand2',
+            font=theme.FONT_BODY, width=14, cursor='hand2',
             padx=8, pady=4,
         ).pack(side='left', padx=4)
 
@@ -295,15 +295,15 @@ class TodoPage(tk.Frame):
 
         btn_frame = tk.Frame(dialog, bg=theme.WINDOW_BG)
         btn_frame.pack(pady=6)
-        tk.Button(
+        theme.RoundedButton(
             btn_frame, text="Add", command=on_ok,
             bg=theme.GREEN, fg=theme.WINDOW_BG,
-            font=theme.FONT_BODY, width=10, relief='flat', cursor='hand2',
+            font=theme.FONT_BODY, width=10, cursor='hand2',
         ).pack(side='left', padx=5)
-        tk.Button(
+        theme.RoundedButton(
             btn_frame, text="Cancel", command=dialog.destroy,
             bg=theme.SURFACE_BG, fg=theme.TEXT,
-            font=theme.FONT_BODY, width=10, relief='flat', cursor='hand2',
+            font=theme.FONT_BODY, width=10, cursor='hand2',
         ).pack(side='left', padx=5)
 
         task_entry.focus_set()

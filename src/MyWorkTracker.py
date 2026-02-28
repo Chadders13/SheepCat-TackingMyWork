@@ -25,13 +25,15 @@ class WorkLoggerApp:
         self.root = root
         self.root.title("SheepCat — Tracking My Work")
         self.root.geometry("800x600")
+
+        # Load settings first so we can apply the chosen UI theme
+        self.settings_manager = SettingsManager()
+        theme.apply_theme(self.settings_manager.get("ui_theme", "Classic"))
+
         self.root.configure(bg=theme.WINDOW_BG)
 
         # Apply SheepCat brand theme to all ttk widgets
         theme.setup_ttk_styles(root)
-        
-        # Load settings
-        self.settings_manager = SettingsManager()
         
         # Initialize data repository using the configured log file path
         self.data_repository = CSVDataRepository(self.settings_manager.get_log_file_path())
@@ -125,47 +127,47 @@ class WorkLoggerApp:
         info_label.pack(pady=0)
         self.info_label = info_label
 
-        btn_start = tk.Button(
+        btn_start = theme.RoundedButton(
             page, text="Start Day", command=self.start_tracking,
             bg=theme.GREEN, fg=theme.WINDOW_BG,
             font=theme.FONT_BODY_BOLD, width=20,
-            relief='flat', cursor='hand2', padx=8, pady=6,
+            cursor='hand2', padx=8, pady=6,
         )
         btn_start.pack(pady=5)
         self.btn_start = btn_start
 
-        btn_continue = tk.Button(
+        btn_continue = theme.RoundedButton(
             page, text="Continue Day", command=self.continue_tracking,
             bg=theme.PRIMARY, fg=theme.TEXT,
             font=theme.FONT_BODY_BOLD, width=20,
-            state=tk.DISABLED, relief='flat', cursor='hand2', padx=8, pady=6,
+            state=tk.DISABLED, cursor='hand2', padx=8, pady=6,
         )
         btn_continue.pack(pady=5)
         self.btn_continue = btn_continue
 
-        btn_add_task = tk.Button(
+        btn_add_task = theme.RoundedButton(
             page, text="Add Task", command=self.add_task,
             bg=theme.PRIMARY, fg=theme.TEXT,
             font=theme.FONT_BODY_BOLD, width=20,
-            state=tk.DISABLED, relief='flat', cursor='hand2', padx=8, pady=6,
+            state=tk.DISABLED, cursor='hand2', padx=8, pady=6,
         )
         btn_add_task.pack(pady=5)
         self.btn_add_task = btn_add_task
 
-        btn_todo = tk.Button(
+        btn_todo = theme.RoundedButton(
             page, text="Todo List", command=lambda: self.show_page("todo"),
             bg=theme.SURFACE_BG, fg=theme.TEXT,
             font=theme.FONT_BODY_BOLD, width=20,
-            relief='flat', cursor='hand2', padx=8, pady=6,
+            cursor='hand2', padx=8, pady=6,
         )
         btn_todo.pack(pady=5)
         self.btn_todo = btn_todo
 
-        btn_stop = tk.Button(
+        btn_stop = theme.RoundedButton(
             page, text="Stop / End Day", command=self.stop_tracking,
             bg=theme.RED, fg=theme.TEXT,
             font=theme.FONT_BODY_BOLD, width=20,
-            state=tk.DISABLED, relief='flat', cursor='hand2', padx=8, pady=6,
+            state=tk.DISABLED, cursor='hand2', padx=8, pady=6,
         )
         btn_stop.pack(pady=5)
         self.btn_stop = btn_stop
@@ -392,15 +394,15 @@ class WorkLoggerApp:
         btn_frame = tk.Frame(dialog, bg=theme.WINDOW_BG)
         btn_frame.pack(pady=10)
 
-        tk.Button(
+        theme.RoundedButton(
             btn_frame, text="OK", command=on_ok,
             bg=theme.GREEN, fg=theme.WINDOW_BG,
-            font=theme.FONT_BODY, width=10, relief='flat', cursor='hand2',
+            font=theme.FONT_BODY, width=10, cursor='hand2',
         ).pack(side='left', padx=5)
-        tk.Button(
+        theme.RoundedButton(
             btn_frame, text="Cancel", command=on_cancel,
             bg=theme.SURFACE_BG, fg=theme.TEXT,
-            font=theme.FONT_BODY, width=10, relief='flat', cursor='hand2',
+            font=theme.FONT_BODY, width=10, cursor='hand2',
         ).pack(side='left', padx=5)
 
         notes_text.focus_set()
@@ -704,15 +706,15 @@ class WorkLoggerApp:
         button_frame = tk.Frame(editor, bg=theme.WINDOW_BG)
         button_frame.pack(pady=10)
         
-        tk.Button(
+        theme.RoundedButton(
             button_frame, text="Save Summary", command=on_save,
             bg=theme.GREEN, fg=theme.WINDOW_BG,
-            font=theme.FONT_BODY, width=15, relief='flat', cursor='hand2',
+            font=theme.FONT_BODY, width=15, cursor='hand2',
         ).pack(side='left', padx=5)
-        tk.Button(
+        theme.RoundedButton(
             button_frame, text="Cancel", command=on_cancel,
             bg=theme.SURFACE_BG, fg=theme.TEXT,
-            font=theme.FONT_BODY, width=15, relief='flat', cursor='hand2',
+            font=theme.FONT_BODY, width=15, cursor='hand2',
         ).pack(side='left', padx=5)
         
         # Wait for the window to close

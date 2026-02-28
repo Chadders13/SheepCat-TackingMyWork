@@ -56,17 +56,17 @@ class ReviewLogPage(tk.Frame):
         )
         self.date_entry.pack(side='left', padx=5)
         
-        tk.Button(
+        theme.RoundedButton(
             date_frame, text="Today", command=self._set_today, width=8,
-            bg=theme.SURFACE_BG, fg=theme.TEXT, relief='flat', cursor='hand2',
+            bg=theme.SURFACE_BG, fg=theme.TEXT, cursor='hand2',
         ).pack(side='left', padx=2)
-        tk.Button(
+        theme.RoundedButton(
             date_frame, text="Load", command=self._load_tasks, width=8,
-            bg=theme.PRIMARY, fg=theme.TEXT, relief='flat', cursor='hand2',
+            bg=theme.PRIMARY, fg=theme.TEXT, cursor='hand2',
         ).pack(side='left', padx=2)
-        tk.Button(
+        theme.RoundedButton(
             date_frame, text="Refresh", command=self._load_tasks, width=8,
-            bg=theme.SURFACE_BG, fg=theme.TEXT, relief='flat', cursor='hand2',
+            bg=theme.SURFACE_BG, fg=theme.TEXT, cursor='hand2',
         ).pack(side='left', padx=2)
         
         # Task list with scrollbar
@@ -105,15 +105,15 @@ class ReviewLogPage(tk.Frame):
         button_frame = tk.Frame(self, bg=theme.WINDOW_BG)
         button_frame.pack(fill='x', padx=10, pady=10)
         
-        tk.Button(
+        theme.RoundedButton(
             button_frame, text="Mark as Resolved", command=self._mark_resolved,
             bg=theme.GREEN, fg=theme.WINDOW_BG,
-            font=theme.FONT_BODY, width=15, relief='flat', cursor='hand2',
+            font=theme.FONT_BODY, width=15, cursor='hand2',
         ).pack(side='left', padx=5)
-        tk.Button(
+        theme.RoundedButton(
             button_frame, text="Mark as Unresolved", command=self._mark_unresolved,
             bg=theme.ACCENT, fg=theme.WINDOW_BG,
-            font=theme.FONT_BODY, width=15, relief='flat', cursor='hand2',
+            font=theme.FONT_BODY, width=15, cursor='hand2',
         ).pack(side='left', padx=5)
         
         # Status label

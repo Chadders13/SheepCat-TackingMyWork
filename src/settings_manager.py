@@ -25,6 +25,7 @@ DEFAULT_SETTINGS = {
     "archive_done_todos": True,
     "archive_trigger": "daily",  # "daily" or "on_summary"
     "archive_file_directory": ".",
+    "ui_theme": "Classic",       # "Classic" or "Glass Purple"
 }
 
 # Default API URLs for each supported provider
