@@ -52,6 +52,9 @@ class WorkLoggerApp:
         self.countdown_id = None
         self.next_checkin_time = None
         self._checkin_in_progress = False  # Guard against stacked check-in prompts
+        self.hyper_focus_active = False
+        self.hyper_focus_end_time = None  # None means "until further notice"
+        self.hyper_focus_timer_id = None
         
         # Create menu bar
         self._create_menu()
@@ -153,6 +156,15 @@ class WorkLoggerApp:
         )
         btn_add_task.pack(pady=5)
         self.btn_add_task = btn_add_task
+
+        btn_hyper_focus = theme.RoundedButton(
+            page, text="🎯 Hyper Focus", command=self.toggle_hyper_focus,
+            bg=theme.ACCENT, fg=theme.WINDOW_BG,
+            font=theme.FONT_BODY_BOLD, width=20,
+            state=tk.DISABLED, cursor='hand2', padx=8, pady=6,
+        )
+        btn_hyper_focus.pack(pady=5)
+        self.btn_hyper_focus = btn_hyper_focus
 
         btn_todo = theme.RoundedButton(
             page, text="Todo List", command=lambda: self.show_page("todo"),
@@ -769,6 +781,7 @@ class WorkLoggerApp:
         self.btn_continue.config(state=tk.DISABLED)
         self.btn_add_task.config(state=tk.NORMAL)
         self.btn_stop.config(state=tk.NORMAL)
+        self.btn_hyper_focus.config(state=tk.NORMAL)
         self.next_checkin_time = now + datetime.timedelta(
             minutes=self.settings_manager.get("checkin_interval_minutes"))
 
@@ -812,6 +825,7 @@ class WorkLoggerApp:
         self.btn_continue.config(state=tk.DISABLED)
         self.btn_add_task.config(state=tk.NORMAL)
         self.btn_stop.config(state=tk.NORMAL)
+        self.btn_hyper_focus.config(state=tk.NORMAL)
         self.next_checkin_time = start_time + datetime.timedelta(
             minutes=self.settings_manager.get("checkin_interval_minutes"))
         
@@ -1229,12 +1243,20 @@ class WorkLoggerApp:
         if self.countdown_id:
             self.root.after_cancel(self.countdown_id)
             self.countdown_id = None  
+
+        # Cancel any pending hyper focus timer
+        if self.hyper_focus_timer_id:
+            self.root.after_cancel(self.hyper_focus_timer_id)
+            self.hyper_focus_timer_id = None
+        self.hyper_focus_active = False
+        self.hyper_focus_end_time = None
         
         self.countdown_label.config(text="")
         self.status_label.config(text="Stopped")
         self.btn_start.config(state=tk.NORMAL)
         self.btn_add_task.config(state=tk.DISABLED)
         self.btn_stop.config(state=tk.DISABLED)
+        self.btn_hyper_focus.config(state=tk.DISABLED, text="🎯 Hyper Focus")
         # After a clean stop the session is ended, so no unfinished session
         self.btn_continue.config(state=tk.DISABLED)
         messagebox.showinfo("Done", "Tracking stopped and saved.")
@@ -1245,6 +1267,25 @@ class WorkLoggerApp:
             return
         
         now = datetime.datetime.now()
+
+        if self.hyper_focus_active:
+            if self.hyper_focus_end_time is None:
+                self.countdown_label.config(text="🎯 Hyper Focus — notifications paused")
+            else:
+                time_remaining = self.hyper_focus_end_time - now
+                if time_remaining.total_seconds() > 0:
+                    minutes, seconds = divmod(int(time_remaining.total_seconds()), 60)
+                    hours, minutes = divmod(minutes, 60)
+                    if hours > 0:
+                        remain_text = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+                    else:
+                        remain_text = f"{minutes:02d}:{seconds:02d}"
+                    self.countdown_label.config(text=f"🎯 Hyper Focus — resuming in {remain_text}")
+                else:
+                    self.countdown_label.config(text="🎯 Hyper Focus — resuming soon…")
+            self.countdown_id = self.root.after(1000, self.update_countdown)
+            return
+
         time_remaining = self.next_checkin_time - now
         
         if time_remaining.total_seconds() <= 0:
@@ -1263,6 +1304,164 @@ class WorkLoggerApp:
         # Schedule next update in 1 second
         self.countdown_id = self.root.after(1000, self.update_countdown)
  
+    def toggle_hyper_focus(self):
+        """Toggle Hyper Focus mode on or off."""
+        if self.hyper_focus_active:
+            self._end_hyper_focus()
+        else:
+            self._prompt_hyper_focus()
+
+    def _prompt_hyper_focus(self):
+        """Show a dialog asking how long to pause check-in notifications."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Hyper Focus")
+        dialog.configure(bg=theme.WINDOW_BG)
+        dialog.resizable(False, False)
+        dialog.grab_set()
+
+        tk.Label(
+            dialog, text="🎯 Hyper Focus",
+            font=theme.FONT_H2, bg=theme.WINDOW_BG, fg=theme.ACCENT,
+        ).pack(pady=(20, 5))
+        tk.Label(
+            dialog, text="Pause check-in notifications so you can focus.",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).pack(pady=(0, 15))
+
+        choice = tk.StringVar(value="1h")
+
+        for value, label in [
+            ("1h", "Pause for 1 hour"),
+            ("until", "Pause until a specific time"),
+            ("indefinite", "Pause until further notice"),
+        ]:
+            tk.Radiobutton(
+                dialog, text=label, variable=choice, value=value,
+                font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.TEXT,
+                selectcolor=theme.INPUT_BG, activebackground=theme.WINDOW_BG,
+                activeforeground=theme.TEXT,
+            ).pack(anchor='w', padx=30, pady=2)
+
+        # Time entry (only relevant for "until" option)
+        time_frame = tk.Frame(dialog, bg=theme.WINDOW_BG)
+        time_frame.pack(pady=(5, 0))
+        tk.Label(
+            time_frame, text="Resume at (HH:MM):",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).pack(side='left', padx=(30, 5))
+        default_resume = (datetime.datetime.now() + datetime.timedelta(hours=1)).strftime("%H:%M")
+        time_var = tk.StringVar(value=default_resume)
+        time_entry = tk.Entry(
+            time_frame, textvariable=time_var, width=8,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+            font=theme.FONT_BODY,
+        )
+        time_entry.pack(side='left')
+
+        def _update_time_entry_state(*_):
+            state = tk.NORMAL if choice.get() == "until" else tk.DISABLED
+            time_entry.config(state=state)
+
+        choice.trace_add('write', _update_time_entry_state)
+        _update_time_entry_state()
+
+        error_label = tk.Label(
+            dialog, text="", font=theme.FONT_SMALL,
+            bg=theme.WINDOW_BG, fg=theme.RED,
+        )
+        error_label.pack(pady=(5, 0))
+
+        def on_ok():
+            c = choice.get()
+            if c == "1h":
+                end_time = datetime.datetime.now() + datetime.timedelta(hours=1)
+            elif c == "until":
+                raw = time_var.get().strip()
+                try:
+                    t = datetime.datetime.strptime(raw, "%H:%M")
+                    end_time = datetime.datetime.now().replace(
+                        hour=t.hour, minute=t.minute, second=0, microsecond=0)
+                    # If the entered time has already passed today, advance to tomorrow
+                    if end_time <= datetime.datetime.now():
+                        end_time += datetime.timedelta(days=1)
+                except ValueError:
+                    error_label.config(text="Invalid time format. Use HH:MM (24-hour).")
+                    return
+            else:
+                end_time = None  # indefinite
+
+            dialog.destroy()
+            self._start_hyper_focus(end_time)
+
+        def on_cancel():
+            dialog.destroy()
+
+        btn_frame = tk.Frame(dialog, bg=theme.WINDOW_BG)
+        btn_frame.pack(pady=15)
+        theme.RoundedButton(
+            btn_frame, text="Start Hyper Focus", command=on_ok,
+            bg=theme.ACCENT, fg=theme.WINDOW_BG,
+            font=theme.FONT_BODY_BOLD, width=18, cursor='hand2',
+        ).pack(side='left', padx=5)
+        theme.RoundedButton(
+            btn_frame, text="Cancel", command=on_cancel,
+            bg=theme.SURFACE_BG, fg=theme.TEXT,
+            font=theme.FONT_BODY, width=10, cursor='hand2',
+        ).pack(side='left', padx=5)
+
+        dialog.wait_window()
+
+    def _start_hyper_focus(self, end_time):
+        """Activate Hyper Focus mode, pausing check-in notifications.
+
+        Args:
+            end_time: datetime when focus should end, or None for indefinite.
+        """
+        # Cancel the pending check-in timer
+        if self.timer_id:
+            self.root.after_cancel(self.timer_id)
+            self.timer_id = None
+
+        self.hyper_focus_active = True
+        self.hyper_focus_end_time = end_time
+
+        self.btn_hyper_focus.config(text="⏹ End Hyper Focus")
+
+        if end_time is not None:
+            # Schedule automatic resume when the focus period ends
+            delay_ms = max(0, int((end_time - datetime.datetime.now()).total_seconds() * 1000))
+            self.hyper_focus_timer_id = self.root.after(delay_ms, self._end_hyper_focus)
+            resume_str = end_time.strftime("%H:%M")
+            messagebox.showinfo(
+                "Hyper Focus Active",
+                f"Notifications paused until {resume_str}.\n"
+                "Click '⏹ End Hyper Focus' to resume early."
+            )
+        else:
+            messagebox.showinfo(
+                "Hyper Focus Active",
+                "Notifications paused until further notice.\n"
+                "Click '⏹ End Hyper Focus' to resume."
+            )
+
+    def _end_hyper_focus(self):
+        """Deactivate Hyper Focus mode and resume the normal check-in schedule."""
+        if self.hyper_focus_timer_id:
+            self.root.after_cancel(self.hyper_focus_timer_id)
+            self.hyper_focus_timer_id = None
+
+        self.hyper_focus_active = False
+        self.hyper_focus_end_time = None
+
+        self.btn_hyper_focus.config(text="🎯 Hyper Focus")
+
+        # Reschedule the next check-in from now
+        now = datetime.datetime.now()
+        interval_minutes = self.settings_manager.get("checkin_interval_minutes")
+        self.next_checkin_time = now + datetime.timedelta(minutes=interval_minutes)
+        interval_ms = interval_minutes * 60 * 1000
+        self.timer_id = self.root.after(interval_ms, self.hourly_checkin)
+
     def log_day_marker(self, timestamp, marker_text):
         """Log a special row for day start/end"""
         task_data = {
