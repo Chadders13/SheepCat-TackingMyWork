@@ -202,3 +202,41 @@ class CSVDataRepository(DataRepository):
             print(f"Error reading all tasks from CSV: {e}")
         
         return tasks
+
+    def update_task_ai_summary(self, task_id: str, ai_summary: str) -> bool:
+        """
+        Update the AI summary of a task in CSV.
+        
+        Note: For CSV, we need to read all rows, update the specific one, and write back.
+        task_id is the row index (1-based, excluding header).
+        
+        Args:
+            task_id: Row index as string
+            ai_summary: New AI-generated summary text
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            rows = []
+            with open(self.csv_file_path, mode='r', encoding='utf-8') as file:
+                reader = csv.reader(file)
+                rows = list(reader)
+            
+            row_idx = int(task_id)
+            if 0 < row_idx < len(rows):
+                col_idx = self.headers.index('AI Summary')
+                rows[row_idx][col_idx] = ai_summary
+                
+                with open(self.csv_file_path, mode='w', newline='', encoding='utf-8') as file:
+                    writer = csv.writer(file)
+                    writer.writerows(rows)
+                
+                return True
+            else:
+                print(f"Invalid task_id: {task_id}")
+                return False
+                
+        except Exception as e:
+            print(f"Error updating task AI summary: {e}")
+            return False

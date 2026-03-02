@@ -219,7 +219,7 @@ class WorkLoggerApp:
 
     def _create_review_page(self):
         """Create the review log page"""
-        page = ReviewLogPage(self.container, self.data_repository)
+        page = ReviewLogPage(self.container, self.data_repository, self.settings_manager)
         self.pages["review"] = page
     
     def _create_settings_page(self):

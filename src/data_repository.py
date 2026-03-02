@@ -85,3 +85,17 @@ class DataRepository(ABC):
             List of task dictionaries
         """
         pass
+
+    @abstractmethod
+    def update_task_ai_summary(self, task_id: str, ai_summary: str) -> bool:
+        """
+        Update the AI summary of a task.
+        
+        Args:
+            task_id: Unique identifier for the task (implementation specific)
+            ai_summary: New AI-generated summary text
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        pass
