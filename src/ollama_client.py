@@ -57,11 +57,32 @@ def check_connection(base_url: str) -> ConnectionResult:
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
             data = response.json()
-            models = [m.get("name", "") for m in data.get("models", [])]
+            models = [m.get("name", "") for m in data.get("models", []) if m.get("name")]
             return ConnectionResult(success=True, models=models)
         return ConnectionResult(success=False)
     except Exception:
         return ConnectionResult(success=False)
+
+
+def get_running_models(base_url: str) -> list:
+    """Query the Ollama /api/ps endpoint for currently loaded models.
+
+    Args:
+        base_url: Root URL of the Ollama instance, e.g. ``http://localhost:11434``.
+
+    Returns:
+        A list of model name strings that are currently loaded in memory.
+        Returns an empty list when the server is unreachable or the call fails.
+    """
+    try:
+        url = base_url.rstrip("/") + "/api/ps"
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            return [m.get("name", "") for m in data.get("models", []) if m.get("name")]
+        return []
+    except Exception:
+        return []
 
 
 def pull_model(base_url: str, model_name: str, progress_callback=None) -> bool:

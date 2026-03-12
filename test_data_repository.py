@@ -1,7 +1,9 @@
 """
 Tests for the data repository implementations.
 """
+import json
 import os
+import shutil
 import sys
 import tempfile
 import datetime
@@ -11,23 +13,37 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from csv_data_repository import CSVDataRepository
+from settings_manager import SettingsManager
 from todo_repository import TodoRepository
+
+
+def _make_settings_manager(temp_dir: str, date_format: str = "") -> SettingsManager:
+    """Create a SettingsManager backed by a temp directory for testing."""
+    settings_file = os.path.join(temp_dir, "test_settings.json")
+    with open(settings_file, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "log_file_directory": temp_dir,
+                "log_file_name": "work_log",
+                "log_file_date_format": date_format,
+            },
+            f,
+        )
+    return SettingsManager(settings_file)
 
 
 class TestCSVDataRepository(unittest.TestCase):
     def setUp(self):
-        """Create a temporary CSV file for testing"""
-        # Create a temp file descriptor and close it to get just the path
-        fd, self.csv_path = tempfile.mkstemp(suffix='.csv')
-        os.close(fd)
-        # Remove the file so repository can create it fresh
-        os.remove(self.csv_path)
-        self.repo = CSVDataRepository(self.csv_path)
-    
+        """Create a temporary directory and settings manager for testing."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.settings_manager = _make_settings_manager(self.temp_dir)
+        # Derive the expected single-file path (no date format)
+        self.csv_path = os.path.join(self.temp_dir, "work_log.csv")
+        self.repo = CSVDataRepository(self.settings_manager)
+
     def tearDown(self):
-        """Clean up temporary file"""
-        if os.path.exists(self.csv_path):
-            os.remove(self.csv_path)
+        """Clean up temporary directory."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
     
     def test_initialize_creates_file(self):
         """Test that initialize creates a CSV file with headers"""
@@ -259,6 +275,315 @@ class TestCSVDataRepository(unittest.TestCase):
         result = self._find_unfinished_session(tasks)
         self.assertIsNotNone(result)
         self.assertEqual(result.hour, 13)
+
+    # ── search_tasks tests ────────────────────────────────────────────────────
+
+    def _log_sample_tasks(self):
+        """Helper: log a set of varied tasks for search tests."""
+        self.repo.initialize()
+        tasks = [
+            {
+                'start_time': '2024-03-01 09:00:00',
+                'end_time': '2024-03-01 09:30:00',
+                'duration': 30,
+                'ticket': 'PROJ-1',
+                'title': 'Standup meeting',
+                'system_info': '',
+                'ai_summary': 'Team aligned on sprint goals.',
+                'resolved': 'Yes',
+            },
+            {
+                'start_time': '2024-03-01 10:00:00',
+                'end_time': '2024-03-01 11:00:00',
+                'duration': 60,
+                'ticket': 'PROJ-2',
+                'title': 'Bug fix in payment module',
+                'system_info': '',
+                'ai_summary': 'Resolved null-pointer in checkout flow.',
+                'resolved': 'Yes',
+            },
+            {
+                'start_time': '2024-03-02 14:00:00',
+                'end_time': '2024-03-02 15:00:00',
+                'duration': 60,
+                'ticket': 'PROJ-3',
+                'title': 'Code review for payment feature',
+                'system_info': '',
+                'ai_summary': 'Reviewed PR, left comments on error handling.',
+                'resolved': 'No',
+            },
+            {
+                'start_time': '2024-03-02 16:00:00',
+                'end_time': '2024-03-02 16:30:00',
+                'duration': 30,
+                'ticket': '',
+                'title': 'Daily standup notes',
+                'system_info': '',
+                'ai_summary': '',
+                'resolved': 'No',
+            },
+        ]
+        for t in tasks:
+            self.repo.log_task(t)
+
+    def test_search_tasks_by_title_keyword(self):
+        """search_tasks finds entries whose title contains the keyword."""
+        self._log_sample_tasks()
+        results = self.repo.search_tasks('standup')
+        titles = [r['Title'] for r in results]
+        self.assertEqual(len(results), 2)
+        self.assertIn('Standup meeting', titles)
+        self.assertIn('Daily standup notes', titles)
+
+    def test_search_tasks_by_summary_keyword(self):
+        """search_tasks matches entries whose AI summary contains the keyword."""
+        self._log_sample_tasks()
+        results = self.repo.search_tasks('payment')
+        # 'Bug fix in payment module' (title match) and
+        # 'Code review for payment feature' (title match) should be found.
+        # 'Resolved null-pointer in checkout flow.' (summary of PROJ-2) also
+        # contains no 'payment' but title does — let's be precise.
+        titles = [r['Title'] for r in results]
+        self.assertIn('Bug fix in payment module', titles)
+        self.assertIn('Code review for payment feature', titles)
+
+    def test_search_tasks_case_insensitive(self):
+        """Keyword matching is case-insensitive."""
+        self._log_sample_tasks()
+        results_lower = self.repo.search_tasks('standup')
+        results_upper = self.repo.search_tasks('STANDUP')
+        self.assertEqual(len(results_lower), len(results_upper))
+
+    def test_search_tasks_date_range_filter(self):
+        """search_tasks respects start_date / end_date filters."""
+        self._log_sample_tasks()
+        start = datetime.date(2024, 3, 2)
+        end = datetime.date(2024, 3, 2)
+        results = self.repo.search_tasks('standup', start_date=start, end_date=end)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['Title'], 'Daily standup notes')
+
+    def test_search_tasks_no_match_returns_empty(self):
+        """search_tasks returns an empty list when nothing matches."""
+        self._log_sample_tasks()
+        results = self.repo.search_tasks('zzznomatch')
+        self.assertEqual(results, [])
+
+    def test_search_tasks_summary_only_match(self):
+        """Entries are returned when only the AI summary matches, not the title."""
+        self._log_sample_tasks()
+        # 'null-pointer' only appears in the AI summary of PROJ-2
+        results = self.repo.search_tasks('null-pointer')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['Ticket'], 'PROJ-2')
+
+    def test_search_tasks_start_date_only(self):
+        """Providing only start_date returns tasks from that date onwards."""
+        self._log_sample_tasks()
+        start = datetime.date(2024, 3, 2)
+        results = self.repo.search_tasks('standup', start_date=start)
+        self.assertEqual(len(results), 1)
+        self.assertIn('2024-03-02', results[0]['Start Time'])
+
+    def test_search_tasks_end_date_only(self):
+        """Providing only end_date returns tasks up to and including that date."""
+        self._log_sample_tasks()
+        end = datetime.date(2024, 3, 1)
+        results = self.repo.search_tasks('standup', end_date=end)
+        self.assertEqual(len(results), 1)
+        self.assertIn('2024-03-01', results[0]['Start Time'])
+
+
+class TestCSVDataRepositoryMultiFile(unittest.TestCase):
+    """Tests for CSVDataRepository when a date-based file naming scheme is used.
+
+    Each day's work is stored in a separate file named
+    ``work_log_{yyyyMMdd}.csv``.  Reads must resolve the correct file for the
+    requested date; writes always target today's file.
+    """
+
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        # Use {yyyyMMdd} date format so each date gets its own CSV file
+        self.settings_manager = _make_settings_manager(self.temp_dir, date_format="{yyyyMMdd}")
+        self.repo = CSVDataRepository(self.settings_manager)
+
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    # ── helpers ───────────────────────────────────────────────────────────────
+
+    def _write_file_for_date(self, date: datetime.date, tasks):
+        """Write a pre-populated CSV file for a specific date directly to disk."""
+        headers = [
+            "Start Time", "End Time", "Duration (Min)",
+            "Ticket", "Title", "System Info", "AI Summary", "Resolved",
+        ]
+        date_str = date.strftime("%Y%m%d")
+        path = os.path.join(self.temp_dir, f"work_log_{date_str}.csv")
+        import csv as _csv
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            writer = _csv.writer(f)
+            writer.writerow(headers)
+            for t in tasks:
+                writer.writerow([
+                    t.get("start_time", ""), t.get("end_time", ""),
+                    t.get("duration", 0), t.get("ticket", ""),
+                    t.get("title", ""), t.get("system_info", ""),
+                    t.get("ai_summary", ""), t.get("resolved", "No"),
+                ])
+        return path
+
+    def _task(self, date: datetime.date, hour: int, title: str, **kwargs):
+        """Return a task dict for the given date/hour."""
+        dt_str = f"{date.strftime('%Y-%m-%d')} {hour:02d}:00:00"
+        return {
+            "start_time": dt_str, "end_time": dt_str, "duration": 30,
+            "ticket": kwargs.get("ticket", ""), "title": title,
+            "system_info": "", "ai_summary": kwargs.get("ai_summary", ""),
+            "resolved": kwargs.get("resolved", "No"),
+        }
+
+    # ── get_tasks_by_date ─────────────────────────────────────────────────────
+
+    def test_get_tasks_by_date_reads_correct_file(self):
+        """get_tasks_by_date returns only tasks from the matching date file."""
+        date_a = datetime.date(2024, 5, 1)
+        date_b = datetime.date(2024, 5, 2)
+        self._write_file_for_date(date_a, [self._task(date_a, 9, "Task A")])
+        self._write_file_for_date(date_b, [self._task(date_b, 10, "Task B")])
+
+        tasks_a = self.repo.get_tasks_by_date(date_a)
+        tasks_b = self.repo.get_tasks_by_date(date_b)
+
+        self.assertEqual(len(tasks_a), 1)
+        self.assertEqual(tasks_a[0]["Title"], "Task A")
+        self.assertEqual(len(tasks_b), 1)
+        self.assertEqual(tasks_b[0]["Title"], "Task B")
+
+    def test_get_tasks_by_date_missing_file_returns_empty(self):
+        """get_tasks_by_date returns [] when no file exists for that date."""
+        result = self.repo.get_tasks_by_date(datetime.date(2020, 1, 1))
+        self.assertEqual(result, [])
+
+    # ── get_tasks_since ───────────────────────────────────────────────────────
+
+    def test_get_tasks_since_spans_multiple_files(self):
+        """get_tasks_since aggregates tasks across multiple date files."""
+        today = datetime.date.today()
+        yesterday = today - datetime.timedelta(days=1)
+
+        self._write_file_for_date(yesterday, [self._task(yesterday, 8, "Old task")])
+        self._write_file_for_date(today, [self._task(today, 9, "New task")])
+
+        since = datetime.datetime.combine(yesterday, datetime.time(7, 0))
+        tasks = self.repo.get_tasks_since(since)
+
+        titles = [t["Title"] for t in tasks]
+        self.assertIn("Old task", titles)
+        self.assertIn("New task", titles)
+
+    def test_get_tasks_since_excludes_tasks_before_cutoff(self):
+        """Tasks before the cutoff time are not returned."""
+        today = datetime.date.today()
+        self._write_file_for_date(
+            today,
+            [
+                self._task(today, 8, "Before cutoff"),
+                self._task(today, 10, "After cutoff"),
+            ],
+        )
+        since = datetime.datetime.combine(today, datetime.time(9, 0))
+        tasks = self.repo.get_tasks_since(since)
+        titles = [t["Title"] for t in tasks]
+        self.assertNotIn("Before cutoff", titles)
+        self.assertIn("After cutoff", titles)
+
+    # ── get_all_tasks ─────────────────────────────────────────────────────────
+
+    def test_get_all_tasks_aggregates_all_files(self):
+        """get_all_tasks returns tasks from every date file in the directory."""
+        d1 = datetime.date(2024, 6, 1)
+        d2 = datetime.date(2024, 6, 2)
+        self._write_file_for_date(d1, [self._task(d1, 9, "Day1 Task")])
+        self._write_file_for_date(d2, [self._task(d2, 10, "Day2 Task")])
+
+        all_tasks = self.repo.get_all_tasks()
+        titles = [t["Title"] for t in all_tasks]
+        self.assertIn("Day1 Task", titles)
+        self.assertIn("Day2 Task", titles)
+        self.assertEqual(len(all_tasks), 2)
+
+    # ── update_task_resolved_status ───────────────────────────────────────────
+
+    def test_update_task_resolved_status_in_past_file(self):
+        """Resolved status can be updated for a task in a historical date file."""
+        past_date = datetime.date(2024, 7, 15)
+        self._write_file_for_date(past_date, [self._task(past_date, 9, "Historical task")])
+
+        tasks = self.repo.get_tasks_by_date(past_date)
+        self.assertEqual(len(tasks), 1)
+        task_id = tasks[0]["task_id"]
+
+        result = self.repo.update_task_resolved_status(task_id, "Yes")
+        self.assertTrue(result)
+
+        updated = self.repo.get_tasks_by_date(past_date)
+        self.assertEqual(updated[0]["Resolved"], "Yes")
+
+    # ── search_tasks ──────────────────────────────────────────────────────────
+
+    def test_search_tasks_across_multiple_files(self):
+        """search_tasks finds results from all date files."""
+        d1 = datetime.date(2024, 8, 1)
+        d2 = datetime.date(2024, 8, 2)
+        self._write_file_for_date(d1, [self._task(d1, 9, "Payment review")])
+        self._write_file_for_date(d2, [self._task(d2, 10, "Standup meeting")])
+
+        results = self.repo.search_tasks("payment")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["Title"], "Payment review")
+
+    def test_search_tasks_date_range_limits_files(self):
+        """search_tasks with a date range only reads files in that range."""
+        d1 = datetime.date(2024, 9, 1)
+        d2 = datetime.date(2024, 9, 2)
+        d3 = datetime.date(2024, 9, 3)
+        self._write_file_for_date(d1, [self._task(d1, 9, "Day1 standup")])
+        self._write_file_for_date(d2, [self._task(d2, 9, "Day2 standup")])
+        self._write_file_for_date(d3, [self._task(d3, 9, "Day3 standup")])
+
+        results = self.repo.search_tasks("standup", start_date=d1, end_date=d2)
+        titles = [r["Title"] for r in results]
+        self.assertIn("Day1 standup", titles)
+        self.assertIn("Day2 standup", titles)
+        self.assertNotIn("Day3 standup", titles)
+
+    # ── task_id routing ───────────────────────────────────────────────────────
+
+    def test_task_id_routes_update_to_correct_file(self):
+        """task_id from get_tasks_by_date correctly routes updates to the right file.
+
+        This verifies the file-path encoding indirectly: if the task_id encodes
+        the wrong file (or no file), the update would either fail or modify the
+        wrong file, and the re-read would not show the change.
+        """
+        date_a = datetime.date(2024, 10, 1)
+        date_b = datetime.date(2024, 10, 2)
+        self._write_file_for_date(date_a, [self._task(date_a, 9, "Task A")])
+        self._write_file_for_date(date_b, [self._task(date_b, 10, "Task B")])
+
+        # Update a task in the date_a file
+        tasks_a = self.repo.get_tasks_by_date(date_a)
+        self.assertEqual(len(tasks_a), 1)
+        result = self.repo.update_task_resolved_status(tasks_a[0]["task_id"], "Yes")
+        self.assertTrue(result)
+
+        # Only date_a's task should be resolved; date_b's should be unchanged
+        updated_a = self.repo.get_tasks_by_date(date_a)
+        updated_b = self.repo.get_tasks_by_date(date_b)
+        self.assertEqual(updated_a[0]["Resolved"], "Yes")
+        self.assertEqual(updated_b[0]["Resolved"], "No")
 
 
 class TestTodoRepository(unittest.TestCase):

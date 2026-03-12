@@ -8,9 +8,13 @@ from tkinter import ttk, messagebox, filedialog
 import datetime
 import os
 
+import threading
+
 from settings_manager import SettingsManager, DEFAULT_SETTINGS, DATE_FORMAT_MAP, PROVIDER_DEFAULT_URLS
 import theme
 from theme import THEME_NAMES
+from ollama_client import check_connection, get_running_models, DEFAULT_OLLAMA_BASE_URL
+from onboarding import _base_url_from_api_url
 
 
 # AI providers available in the dropdown
@@ -104,60 +108,72 @@ class SettingsPage(tk.Frame):
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
         ).grid(row=3, column=0, sticky='w', padx=15, pady=5)
         self.model_var = tk.StringVar()
-        tk.Entry(
-            form, textvariable=self.model_var, width=30,
-            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
-        ).grid(row=3, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        model_row = tk.Frame(form, bg=theme.WINDOW_BG)
+        model_row.grid(row=3, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        self.model_combo = ttk.Combobox(
+            model_row, textvariable=self.model_var, width=27, state='normal')
+        self.model_combo.pack(side='left')
+        theme.RoundedButton(
+            model_row, text="⟳ Refresh", command=self._refresh_models,
+            bg=theme.SURFACE_BG, fg=theme.TEXT, cursor='hand2',
+        ).pack(side='left', padx=5)
+
+        self.models_status_var = tk.StringVar(value="")
+        self.models_status_label = tk.Label(
+            form, textvariable=self.models_status_var,
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED, anchor='w',
+        )
+        self.models_status_label.grid(row=4, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 2))
 
         tk.Label(
             form, text="Request Timeout (seconds):",
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
-        ).grid(row=4, column=0, sticky='w', padx=15, pady=5)
+        ).grid(row=5, column=0, sticky='w', padx=15, pady=5)
         self.llm_timeout_var = tk.StringVar()
         tk.Entry(
             form, textvariable=self.llm_timeout_var, width=10,
             bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
-        ).grid(row=4, column=1, sticky='w', padx=5, pady=5)
+        ).grid(row=5, column=1, sticky='w', padx=5, pady=5)
 
         tk.Label(
             form, text="Max Chunk Size (chars):",
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
-        ).grid(row=5, column=0, sticky='w', padx=15, pady=5)
+        ).grid(row=6, column=0, sticky='w', padx=15, pady=5)
         self.max_chunk_var = tk.StringVar()
         tk.Entry(
             form, textvariable=self.max_chunk_var, width=10,
             bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
-        ).grid(row=5, column=1, sticky='w', padx=5, pady=5)
+        ).grid(row=6, column=1, sticky='w', padx=5, pady=5)
 
         # ---- Timer Settings ----
         tk.Label(
             form, text="Timer Settings",
             font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
-        ).grid(row=6, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
+        ).grid(row=7, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
 
         tk.Label(
             form, text="Check-in Interval (minutes):",
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
-        ).grid(row=7, column=0, sticky='w', padx=15, pady=5)
+        ).grid(row=8, column=0, sticky='w', padx=15, pady=5)
         self.interval_var = tk.StringVar()
         tk.Entry(
             form, textvariable=self.interval_var, width=10,
             bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
-        ).grid(row=7, column=1, sticky='w', padx=5, pady=5)
+        ).grid(row=8, column=1, sticky='w', padx=5, pady=5)
 
         # ---- Log File Settings ----
         tk.Label(
             form, text="Log File Settings",
             font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
-        ).grid(row=8, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
+        ).grid(row=9, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
 
         tk.Label(
             form, text="Log File Directory:",
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
-        ).grid(row=9, column=0, sticky='w', padx=15, pady=5)
+        ).grid(row=10, column=0, sticky='w', padx=15, pady=5)
         self.log_dir_var = tk.StringVar()
         dir_frame = tk.Frame(form, bg=theme.WINDOW_BG)
-        dir_frame.grid(row=9, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        dir_frame.grid(row=10, column=1, columnspan=2, sticky='w', padx=5, pady=5)
         tk.Entry(
             dir_frame, textvariable=self.log_dir_var, width=40,
             bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
@@ -170,32 +186,32 @@ class SettingsPage(tk.Frame):
         tk.Label(
             form, text="Log File Name (no extension):",
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
-        ).grid(row=10, column=0, sticky='w', padx=15, pady=5)
+        ).grid(row=11, column=0, sticky='w', padx=15, pady=5)
         self.log_name_var = tk.StringVar()
         tk.Entry(
             form, textvariable=self.log_name_var, width=30,
             bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
-        ).grid(row=10, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        ).grid(row=11, column=1, columnspan=2, sticky='w', padx=5, pady=5)
 
         tk.Label(
             form, text="Date Format in Filename:",
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
-        ).grid(row=11, column=0, sticky='w', padx=15, pady=5)
+        ).grid(row=12, column=0, sticky='w', padx=15, pady=5)
         self.date_format_var = tk.StringVar()
         self.date_format_combo = ttk.Combobox(
             form, textvariable=self.date_format_var, width=38, state='readonly')
         self.date_format_combo['values'] = [opt[0] for opt in DATE_FORMAT_OPTIONS]
-        self.date_format_combo.grid(row=11, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        self.date_format_combo.grid(row=12, column=1, columnspan=2, sticky='w', padx=5, pady=5)
 
         tk.Label(
             form, text="Filename Preview:",
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
-        ).grid(row=12, column=0, sticky='w', padx=15, pady=5)
+        ).grid(row=13, column=0, sticky='w', padx=15, pady=5)
         self.preview_var = tk.StringVar()
         tk.Label(
             form, textvariable=self.preview_var,
             font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
-        ).grid(row=12, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        ).grid(row=13, column=1, columnspan=2, sticky='w', padx=5, pady=5)
 
         # Bind changes to update preview
         self.log_dir_var.trace_add('write', self._update_preview)
@@ -206,7 +222,7 @@ class SettingsPage(tk.Frame):
         tk.Label(
             form, text="Daily Summary Settings",
             font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
-        ).grid(row=13, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
+        ).grid(row=14, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
 
         self.summary_save_var = tk.BooleanVar()
         tk.Checkbutton(
@@ -215,15 +231,15 @@ class SettingsPage(tk.Frame):
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.TEXT,
             selectcolor=theme.INPUT_BG, activebackground=theme.WINDOW_BG,
             command=self._on_summary_save_toggled,
-        ).grid(row=14, column=0, columnspan=3, sticky='w', padx=15, pady=5)
+        ).grid(row=15, column=0, columnspan=3, sticky='w', padx=15, pady=5)
 
         tk.Label(
             form, text="Summary File Directory:",
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
-        ).grid(row=15, column=0, sticky='w', padx=15, pady=5)
+        ).grid(row=16, column=0, sticky='w', padx=15, pady=5)
         self.summary_dir_var = tk.StringVar()
         summary_dir_frame = tk.Frame(form, bg=theme.WINDOW_BG)
-        summary_dir_frame.grid(row=15, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        summary_dir_frame.grid(row=16, column=1, columnspan=2, sticky='w', padx=5, pady=5)
         self.summary_dir_entry = tk.Entry(
             summary_dir_frame, textvariable=self.summary_dir_var, width=40,
             bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
@@ -238,22 +254,22 @@ class SettingsPage(tk.Frame):
         tk.Label(
             form, text="Date Format in Filename:",
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
-        ).grid(row=16, column=0, sticky='w', padx=15, pady=5)
+        ).grid(row=17, column=0, sticky='w', padx=15, pady=5)
         self.summary_date_format_var = tk.StringVar()
         self.summary_date_format_combo = ttk.Combobox(
             form, textvariable=self.summary_date_format_var, width=38, state='readonly')
         self.summary_date_format_combo['values'] = [opt[0] for opt in DATE_FORMAT_OPTIONS]
-        self.summary_date_format_combo.grid(row=16, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        self.summary_date_format_combo.grid(row=17, column=1, columnspan=2, sticky='w', padx=5, pady=5)
 
         tk.Label(
             form, text="Summary Filename Preview:",
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
-        ).grid(row=17, column=0, sticky='w', padx=15, pady=5)
+        ).grid(row=18, column=0, sticky='w', padx=15, pady=5)
         self.summary_preview_var = tk.StringVar()
         tk.Label(
             form, textvariable=self.summary_preview_var,
             font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
-        ).grid(row=17, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        ).grid(row=18, column=1, columnspan=2, sticky='w', padx=5, pady=5)
 
         # Bind changes to update summary preview
         self.summary_dir_var.trace_add('write', self._update_summary_preview)
@@ -263,7 +279,7 @@ class SettingsPage(tk.Frame):
         tk.Label(
             form, text="Todo Archiving Settings",
             font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
-        ).grid(row=18, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
+        ).grid(row=19, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
 
         self.archive_done_var = tk.BooleanVar()
         tk.Checkbutton(
@@ -272,27 +288,27 @@ class SettingsPage(tk.Frame):
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.TEXT,
             selectcolor=theme.INPUT_BG, activebackground=theme.WINDOW_BG,
             command=self._on_archive_toggled,
-        ).grid(row=19, column=0, columnspan=3, sticky='w', padx=15, pady=5)
+        ).grid(row=20, column=0, columnspan=3, sticky='w', padx=15, pady=5)
 
         tk.Label(
             form, text="Archive trigger:",
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
-        ).grid(row=20, column=0, sticky='w', padx=15, pady=5)
+        ).grid(row=21, column=0, sticky='w', padx=15, pady=5)
         self.archive_trigger_var = tk.StringVar()
         self.archive_trigger_combo = ttk.Combobox(
             form, textvariable=self.archive_trigger_var,
             values=["Daily (on day start/end)", "After end-of-day summary"],
             width=30, state='readonly',
         )
-        self.archive_trigger_combo.grid(row=20, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        self.archive_trigger_combo.grid(row=21, column=1, columnspan=2, sticky='w', padx=5, pady=5)
 
         tk.Label(
             form, text="Archive File Directory:",
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
-        ).grid(row=21, column=0, sticky='w', padx=15, pady=5)
+        ).grid(row=22, column=0, sticky='w', padx=15, pady=5)
         self.archive_dir_var = tk.StringVar()
         archive_dir_frame = tk.Frame(form, bg=theme.WINDOW_BG)
-        archive_dir_frame.grid(row=21, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        archive_dir_frame.grid(row=22, column=1, columnspan=2, sticky='w', padx=5, pady=5)
         self.archive_dir_entry = tk.Entry(
             archive_dir_frame, textvariable=self.archive_dir_var, width=40,
             bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
@@ -308,28 +324,58 @@ class SettingsPage(tk.Frame):
         tk.Label(
             form, text="Appearance",
             font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
-        ).grid(row=22, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
+        ).grid(row=23, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
 
         tk.Label(
             form, text="UI Theme:",
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
-        ).grid(row=23, column=0, sticky='w', padx=15, pady=5)
+        ).grid(row=24, column=0, sticky='w', padx=15, pady=5)
         self.theme_var = tk.StringVar()
         self.theme_combo = ttk.Combobox(
             form, textvariable=self.theme_var, values=THEME_NAMES, width=20, state='readonly')
-        self.theme_combo.grid(row=23, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        self.theme_combo.grid(row=24, column=1, columnspan=2, sticky='w', padx=5, pady=5)
 
         tk.Label(
             form, text="Classic – original dark slate/indigo\nGlass Purple – soft modern purple palette",
             font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED, justify='left',
-        ).grid(row=24, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 5))
+        ).grid(row=25, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 5))
 
         self.theme_note_label = tk.Label(
             form, text="",
             font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.ACCENT, justify='left',
         )
-        self.theme_note_label.grid(row=25, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 5))
+        self.theme_note_label.grid(row=26, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 5))
         self.theme_combo.bind('<<ComboboxSelected>>', self._on_theme_changed)
+
+        # ---- AI Summary Prompt Context ----
+        tk.Label(
+            form, text="AI Summary Prompt Context",
+            font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
+        ).grid(row=27, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
+
+        tk.Label(
+            form,
+            text="Extra instructions added to the interval (hourly) summary prompt:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=28, column=0, columnspan=3, sticky='w', padx=15, pady=(5, 0))
+        self.hourly_context_text = tk.Text(
+            form, height=4, width=60, wrap='word',
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+            font=theme.FONT_BODY,
+        )
+        self.hourly_context_text.grid(row=29, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 5))
+
+        tk.Label(
+            form,
+            text="Extra instructions added to the end-of-day summary prompt:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=30, column=0, columnspan=3, sticky='w', padx=15, pady=(5, 0))
+        self.daily_context_text = tk.Text(
+            form, height=4, width=60, wrap='word',
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+            font=theme.FONT_BODY,
+        )
+        self.daily_context_text.grid(row=31, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 10))
 
         # ---- Buttons ----
         button_frame = tk.Frame(self, bg=theme.WINDOW_BG)
@@ -355,6 +401,55 @@ class SettingsPage(tk.Frame):
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    def _get_base_url(self) -> str:
+        """Derive the Ollama base URL from the current API URL field."""
+        api_url = self.api_url_var.get().strip()
+        if api_url:
+            try:
+                return _base_url_from_api_url(api_url)
+            except Exception:
+                pass
+        return DEFAULT_OLLAMA_BASE_URL
+
+    def _refresh_models(self):
+        """Fetch available and running models from Ollama in a background thread."""
+        self.models_status_var.set("🔄 Fetching models…")
+        self.model_combo['values'] = []
+
+        def _fetch():
+            base_url = self._get_base_url()
+            result = check_connection(base_url)
+            running = get_running_models(base_url) if result.success else []
+            self.after(0, self._apply_models, result.success, result.models, running)
+
+        threading.Thread(target=_fetch, daemon=True).start()
+
+    def _apply_models(self, success: bool, models: list, running: list):
+        """Update model combobox and status label with fetched data (called on main thread)."""
+        if not success:
+            self.models_status_var.set("⚠ Could not reach Ollama – check API URL")
+            self.models_status_label.config(fg=theme.RED)
+            return
+
+        self.model_combo['values'] = models
+
+        # Keep the currently configured model selected (or the first available)
+        current = self.model_var.get().strip()
+        if current not in models and models:
+            self.model_var.set(models[0])
+
+        if running:
+            running_str = ", ".join(running)
+            self.models_status_var.set(f"✅ {len(models)} model(s) available  |  🟢 Running: {running_str}")
+        else:
+            self.models_status_var.set(f"✅ {len(models)} model(s) available  |  ⚪ No model currently running")
+        self.models_status_label.config(fg=theme.MUTED)
+
+    def refresh(self):
+        """Reload settings and refresh the model list from Ollama."""
+        self._load_settings()
+        self._refresh_models()
 
     def _on_theme_changed(self, _event=None):
         """Show a note when the user picks a different theme."""
@@ -500,6 +595,12 @@ class SettingsPage(tk.Frame):
         self.theme_var.set(sm.get("ui_theme", "Classic"))
         self.theme_note_label.config(text="")
 
+        # AI Summary Prompt Context
+        self.hourly_context_text.delete("1.0", tk.END)
+        self.hourly_context_text.insert("1.0", sm.get("hourly_summary_extra_context", ""))
+        self.daily_context_text.delete("1.0", tk.END)
+        self.daily_context_text.insert("1.0", sm.get("daily_summary_extra_context", ""))
+
         self._update_preview()
         self._update_summary_preview()
 
@@ -543,6 +644,10 @@ class SettingsPage(tk.Frame):
         sm.set("archive_trigger", "on_summary" if "summary" in trigger_label.lower() else "daily")
         sm.set("archive_file_directory", self.archive_dir_var.get().strip() or ".")
         sm.set("ui_theme", self.theme_var.get())
+        sm.set("hourly_summary_extra_context",
+               self.hourly_context_text.get("1.0", tk.END).strip())
+        sm.set("daily_summary_extra_context",
+               self.daily_context_text.get("1.0", tk.END).strip())
 
         if sm.save():
             self.status_label.config(text="Settings saved successfully!", fg=theme.GREEN)

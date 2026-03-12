@@ -2,7 +2,9 @@
 Integration test for the application (without GUI).
 Tests the integration of components.
 """
+import json
 import os
+import shutil
 import sys
 import tempfile
 import datetime
@@ -11,19 +13,30 @@ import datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from csv_data_repository import CSVDataRepository
+from settings_manager import SettingsManager
 
 def test_integration():
     """Test basic integration of repository and application flow"""
     print("Running integration tests...")
     
-    # Create temp CSV
-    fd, csv_path = tempfile.mkstemp(suffix='.csv')
-    os.close(fd)
-    os.remove(csv_path)
+    # Create a temp directory and settings manager (single-file mode, no date format)
+    temp_dir = tempfile.mkdtemp()
     
     try:
+        settings_file = os.path.join(temp_dir, "test_settings.json")
+        with open(settings_file, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "log_file_directory": temp_dir,
+                    "log_file_name": "work_log",
+                    "log_file_date_format": "",
+                },
+                f,
+            )
+        settings_manager = SettingsManager(settings_file)
+
         # Initialize repository
-        repo = CSVDataRepository(csv_path)
+        repo = CSVDataRepository(settings_manager)
         repo.initialize()
         print("✓ Repository initialized")
         
@@ -97,8 +110,7 @@ def test_integration():
         return False
     finally:
         # Cleanup
-        if os.path.exists(csv_path):
-            os.remove(csv_path)
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 if __name__ == '__main__':
     success = test_integration()

@@ -85,3 +85,19 @@ class DataRepository(ABC):
             List of task dictionaries
         """
         pass
+
+    @abstractmethod
+    def search_tasks(self, keyword: str, start_date: Optional[datetime.date] = None,
+                     end_date: Optional[datetime.date] = None) -> List[Dict]:
+        """
+        Search tasks whose title or AI summary contains the given keyword.
+
+        Args:
+            keyword: Case-insensitive substring to look for in Title and AI Summary.
+            start_date: If provided, only return tasks on or after this date.
+            end_date: If provided, only return tasks on or before this date.
+
+        Returns:
+            List of matching task dictionaries, oldest first.
+        """
+        pass

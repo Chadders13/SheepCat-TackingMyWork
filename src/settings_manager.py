@@ -26,6 +26,8 @@ DEFAULT_SETTINGS = {
     "archive_trigger": "daily",  # "daily" or "on_summary"
     "archive_file_directory": ".",
     "ui_theme": "Classic",       # "Classic" or "Glass Purple"
+    "hourly_summary_extra_context": "",   # Extra instructions appended to interval summary prompts
+    "daily_summary_extra_context": "",    # Extra instructions appended to end-of-day summary prompts
 }
 
 # Default API URLs for each supported provider
