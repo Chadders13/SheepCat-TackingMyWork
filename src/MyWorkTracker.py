@@ -36,8 +36,9 @@ class WorkLoggerApp:
         # Apply SheepCat brand theme to all ttk widgets
         theme.setup_ttk_styles(root)
         
-        # Initialize data repository using the configured log file path
-        self.data_repository = CSVDataRepository(self.settings_manager.get_log_file_path())
+        # Initialize data repository using the settings manager so it can
+        # resolve file paths for any date, not just today.
+        self.data_repository = CSVDataRepository(self.settings_manager)
         self.data_repository.initialize()
         
         # Initialize todo repository
@@ -261,9 +262,8 @@ class WorkLoggerApp:
         # Update the model info label on the tracker page
         self.info_label.config(text=f"Model: {self.settings_manager.get('ai_model')}")
         
-        # Reinitialise the data repository with the (possibly new) log file path
-        new_path = self.settings_manager.get_log_file_path()
-        self.data_repository = CSVDataRepository(new_path)
+        # Reinitialise the data repository with the (possibly new) settings
+        self.data_repository = CSVDataRepository(self.settings_manager)
         self.data_repository.initialize()
         
         # Update the review page to use the new repository
