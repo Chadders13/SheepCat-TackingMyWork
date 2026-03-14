@@ -1,0 +1,39 @@
+# Bluesky Release Promotion
+#
+# Triggered when a GitHub Release is published.
+# Posts a short announcement to Bluesky via the atproto SDK.
+
+name: Bluesky Release Promotion
+
+on:
+  release:
+    types: [published]
+
+# Only read access is needed — this workflow does not push to the repo
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    name: Post to Bluesky
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-actions.txt
+
+      - name: Post release announcement to Bluesky
+        env:
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
+        run: python scripts/promote_release.py
