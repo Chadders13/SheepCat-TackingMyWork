@@ -377,6 +377,84 @@ class SettingsPage(tk.Frame):
         )
         self.daily_context_text.grid(row=31, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 10))
 
+        # ---- External API Settings ----
+        tk.Label(
+            form, text="External API Settings",
+            font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
+        ).grid(row=32, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 2))
+
+        tk.Label(
+            form,
+            text=(
+                "🔒  Credentials are stored locally in your settings file only.\n"
+                "No data is sent to external systems without your explicit confirmation."
+            ),
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.ACCENT,
+            justify='left',
+        ).grid(row=33, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 8))
+
+        # -- Jira --
+        tk.Label(
+            form, text="Jira (API v3)",
+            font=theme.FONT_BODY_BOLD, bg=theme.WINDOW_BG, fg=theme.TEXT,
+        ).grid(row=34, column=0, columnspan=3, sticky='w', padx=15, pady=(5, 2))
+
+        tk.Label(
+            form, text="Jira Host URL:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=35, column=0, sticky='w', padx=15, pady=5)
+        self.jira_host_var = tk.StringVar()
+        tk.Entry(
+            form, textvariable=self.jira_host_var, width=50,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).grid(row=35, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+
+        tk.Label(
+            form, text="Jira Account Email:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=36, column=0, sticky='w', padx=15, pady=5)
+        self.jira_email_var = tk.StringVar()
+        tk.Entry(
+            form, textvariable=self.jira_email_var, width=50,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).grid(row=36, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+
+        tk.Label(
+            form, text="Jira API Token:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=37, column=0, sticky='w', padx=15, pady=5)
+        self.jira_token_var = tk.StringVar()
+        tk.Entry(
+            form, textvariable=self.jira_token_var, width=50, show="*",
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).grid(row=37, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+
+        # -- Azure DevOps --
+        tk.Label(
+            form, text="Azure DevOps",
+            font=theme.FONT_BODY_BOLD, bg=theme.WINDOW_BG, fg=theme.TEXT,
+        ).grid(row=38, column=0, columnspan=3, sticky='w', padx=15, pady=(10, 2))
+
+        tk.Label(
+            form, text="Organization / Project URL:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=39, column=0, sticky='w', padx=15, pady=5)
+        self.ado_org_url_var = tk.StringVar()
+        tk.Entry(
+            form, textvariable=self.ado_org_url_var, width=50,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).grid(row=39, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+
+        tk.Label(
+            form, text="Personal Access Token (PAT):",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=40, column=0, sticky='w', padx=15, pady=5)
+        self.ado_pat_var = tk.StringVar()
+        tk.Entry(
+            form, textvariable=self.ado_pat_var, width=50, show="*",
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).grid(row=40, column=1, columnspan=2, sticky='w', padx=5, pady=(5, 15))
+
         # ---- Buttons ----
         button_frame = tk.Frame(self, bg=theme.WINDOW_BG)
         button_frame.pack(pady=15)
@@ -601,6 +679,13 @@ class SettingsPage(tk.Frame):
         self.daily_context_text.delete("1.0", tk.END)
         self.daily_context_text.insert("1.0", sm.get("daily_summary_extra_context", ""))
 
+        # External API settings
+        self.jira_host_var.set(sm.get("jira_host", ""))
+        self.jira_email_var.set(sm.get("jira_email", ""))
+        self.jira_token_var.set(sm.get("jira_api_token", ""))
+        self.ado_org_url_var.set(sm.get("azure_devops_org_url", ""))
+        self.ado_pat_var.set(sm.get("azure_devops_pat", ""))
+
         self._update_preview()
         self._update_summary_preview()
 
@@ -648,6 +733,13 @@ class SettingsPage(tk.Frame):
                self.hourly_context_text.get("1.0", tk.END).strip())
         sm.set("daily_summary_extra_context",
                self.daily_context_text.get("1.0", tk.END).strip())
+
+        # External API settings
+        sm.set("jira_host", self.jira_host_var.get().strip())
+        sm.set("jira_email", self.jira_email_var.get().strip())
+        sm.set("jira_api_token", self.jira_token_var.get().strip())
+        sm.set("azure_devops_org_url", self.ado_org_url_var.get().strip())
+        sm.set("azure_devops_pat", self.ado_pat_var.get().strip())
 
         if sm.save():
             self.status_label.config(text="Settings saved successfully!", fg=theme.GREEN)

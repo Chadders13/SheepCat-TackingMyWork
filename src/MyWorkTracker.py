@@ -17,6 +17,7 @@ from todo_page import TodoPage
 import theme
 from onboarding import run_onboarding
 from ollama_client import check_connection, DEFAULT_OLLAMA_BASE_URL
+from send_updates_dialog import SendUpdatesDialog
  
 _NO_TICKET_LABEL = "(no ticket)"
 
@@ -167,6 +168,15 @@ class WorkLoggerApp:
         btn_todo.pack(pady=5)
         self.btn_todo = btn_todo
 
+        btn_send_updates = theme.RoundedButton(
+            page, text="Send Updates", command=self.open_send_updates,
+            bg=theme.ACCENT, fg=theme.WINDOW_BG,
+            font=theme.FONT_BODY_BOLD, width=20,
+            cursor='hand2', padx=8, pady=6,
+        )
+        btn_send_updates.pack(pady=5)
+        self.btn_send_updates = btn_send_updates
+
         btn_stop = theme.RoundedButton(
             page, text="Stop / End Day", command=self.stop_tracking,
             bg=theme.RED, fg=theme.TEXT,
@@ -303,6 +313,13 @@ class WorkLoggerApp:
     
     def get_system_context(self):
         return f"OS: {platform.system()} | Node: {platform.node()}"
+
+    def open_send_updates(self):
+        """Open the Send Updates dialog to post work-log entries to external
+        ticket systems (Jira, Azure DevOps).  No data leaves the machine
+        without explicit user confirmation inside the dialog.
+        """
+        SendUpdatesDialog(self.root, self.settings_manager, self.data_repository)
  
     def ask_task_details(self):
         dialog = tk.Toplevel(self.root)

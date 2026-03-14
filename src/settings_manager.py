@@ -28,6 +28,12 @@ DEFAULT_SETTINGS = {
     "ui_theme": "Classic",       # "Classic" or "Glass Purple"
     "hourly_summary_extra_context": "",   # Extra instructions appended to interval summary prompts
     "daily_summary_extra_context": "",    # Extra instructions appended to end-of-day summary prompts
+    # ── External API integrations (opt-in, explicit consent required) ─────────
+    "jira_host": "",          # e.g. https://yourcompany.atlassian.net
+    "jira_email": "",         # Atlassian account email
+    "jira_api_token": "",     # Jira API token (never committed to source)
+    "azure_devops_org_url": "",   # e.g. https://dev.azure.com/myorg/myproject
+    "azure_devops_pat": "",       # Personal Access Token
 }
 
 # Default API URLs for each supported provider
