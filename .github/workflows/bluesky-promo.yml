@@ -38,3 +38,10 @@ jobs:
           BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
           GITHUB_RELEASE_BODY: ${{ github.event.release.body }}
         run: python scripts/promote_release.py
+
+      - name: Like recent posts from sheep-cat.bsky.social
+        env:
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
+          BSKY_LIKE_ACCOUNT: sheep-cat.bsky.social
+        run: python scripts/like_recent_posts.py
