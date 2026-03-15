@@ -10,8 +10,11 @@ from data_repository import DataRepository
 from settings_manager import SettingsManager, DATE_FORMAT_MAP
 
 # Separator used to encode the source file path inside a task_id string.
-# The null character cannot appear in file-system paths on any supported OS.
-_TASK_ID_SEP = "\x00"
+# "||" cannot appear in Windows file paths (| is reserved) and is unlikely
+# in Linux/macOS paths. The previous \x00 separator caused Tcl/Tk to treat
+# task_ids as truncated at the null byte, so all rows from the same file
+# shared the same Treeview iid and the second insert would fail.
+_TASK_ID_SEP = "||"
 
 
 class CSVDataRepository(DataRepository):

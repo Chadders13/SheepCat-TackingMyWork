@@ -14,19 +14,23 @@ from settings_manager import SettingsManager
 from settings_page import SettingsPage
 from todo_repository import TodoRepository
 from todo_page import TodoPage
+from about_page import AboutPage
 import theme
 from onboarding import run_onboarding
 from ollama_client import check_connection, DEFAULT_OLLAMA_BASE_URL
 from send_updates_dialog import SendUpdatesDialog
  
 _NO_TICKET_LABEL = "(no ticket)"
+# Delay (ms) before focusing the inline notes field after a layout change.
+# A small pause lets the geometry manager finish rendering before focus is set.
+_FOCUS_DELAY_MS = 100
 
 
 class WorkLoggerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("SheepCat — Tracking My Work")
-        self.root.geometry("800x600")
+        self.root.geometry("900x700")
 
         # Load settings first so we can apply the chosen UI theme
         self.settings_manager = SettingsManager()
@@ -56,9 +60,9 @@ class WorkLoggerApp:
         self.next_checkin_time = None
         self._checkin_in_progress = False  # Guard against stacked check-in prompts
         
-        # Create menu bar
-        self._create_menu()
-        
+        # Create top navigation bar (replaces old menu bar)
+        self._create_nav_bar()
+
         # Create main container for pages
         self.container = tk.Frame(root, bg=theme.WINDOW_BG)
         self.container.pack(fill='both', expand=True)
@@ -70,6 +74,7 @@ class WorkLoggerApp:
         self._create_search_page()
         self._create_settings_page()
         self._create_todo_page()
+        self._create_about_page()
         
         # Show tracker page by default
         self.show_page("tracker")
@@ -80,112 +85,329 @@ class WorkLoggerApp:
         # Check for an unfinished session on startup
         self._update_continue_button()
     
-    def _create_menu(self):
-        """Create the menu bar"""
-        menubar = tk.Menu(
-            self.root,
-            bg=theme.SURFACE_BG, fg=theme.TEXT,
-            activebackground=theme.PRIMARY_D, activeforeground=theme.TEXT,
-            borderwidth=0,
-        )
-        self.root.config(menu=menubar)
+    def _create_nav_bar(self):
+        """Create a top-level navigation bar with one button per page."""
+        nav_bar = tk.Frame(self.root, bg=theme.SURFACE_BG, pady=4, padx=8)
+        nav_bar.pack(fill='x', side='top')
+        self.nav_bar = nav_bar
 
-        # Pages menu
-        pages_menu = tk.Menu(
-            menubar, tearoff=0,
-            bg=theme.SURFACE_BG, fg=theme.TEXT,
-            activebackground=theme.PRIMARY_D, activeforeground=theme.TEXT,
-        )
-        menubar.add_cascade(label="Pages", menu=pages_menu)
-        pages_menu.add_command(label="Task Tracker", command=lambda: self.show_page("tracker"))
-        pages_menu.add_command(label="Review Work Log", command=lambda: self.show_page("review"))
-        pages_menu.add_command(label="Search Notes", command=lambda: self.show_page("search"))
-        pages_menu.add_command(label="Todo List", command=lambda: self.show_page("todo"))
-        pages_menu.add_command(label="Settings", command=lambda: self.show_page("settings"))
-        pages_menu.add_separator()
-        pages_menu.add_command(label="Exit", command=self.root.quit)
-    
+        nav_pages = [
+            ("Home",         "tracker"),
+            ("Review Log",   "review"),
+            ("Search Notes", "search"),
+            ("Todo List",    "todo"),
+            ("Settings",     "settings"),
+            ("About",        "about"),
+        ]
+
+        self.nav_buttons = {}
+        left = tk.Frame(nav_bar, bg=theme.SURFACE_BG)
+        left.pack(side='left')
+
+        for label, page_name in nav_pages:
+            btn = tk.Button(
+                left,
+                text=label,
+                command=lambda p=page_name: self.show_page(p),
+                bg=theme.SURFACE_BG,
+                fg=theme.TEXT,
+                font=theme.FONT_BODY_BOLD,
+                relief='flat',
+                padx=14, pady=7,
+                cursor='hand2',
+                activebackground=theme.PRIMARY_D,
+                activeforeground=theme.TEXT,
+                bd=0,
+            )
+            btn.pack(side='left', padx=1)
+            self.nav_buttons[page_name] = btn
+
+        # Exit button on the right
+        tk.Button(
+            nav_bar,
+            text="Exit",
+            command=self.root.quit,
+            bg=theme.SURFACE_BG,
+            fg=theme.MUTED,
+            font=theme.FONT_SMALL,
+            relief='flat',
+            padx=10, pady=7,
+            cursor='hand2',
+            activebackground=theme.RED,
+            activeforeground=theme.TEXT,
+            bd=0,
+        ).pack(side='right', padx=2)
+
+
     def _create_tracker_page(self):
-        """Create the tracker page (original functionality)"""
+        """Create the tracker page with pre-session and active-session views."""
         page = tk.Frame(self.container, bg=theme.WINDOW_BG)
         self.pages["tracker"] = page
 
-        # UI Elements
-        status_label = tk.Label(
-            page, text="Ready to track",
-            font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.TEXT,
+        # ── Status label (always visible at top of tracker page) ─────────────
+        self.status_label = tk.Label(
+            page,
+            text="Ready to track",
+            font=theme.FONT_H3,
+            bg=theme.WINDOW_BG,
+            fg=theme.TEXT,
         )
-        status_label.pack(pady=20)
-        self.status_label = status_label
+        self.status_label.pack(pady=(16, 2))
 
-        countdown_label = tk.Label(
-            page, text="",
-            font=theme.FONT_BODY_BOLD, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
+        self.info_label = tk.Label(
+            page,
+            text=f"Model: {self.settings_manager.get('ai_model')}",
+            font=theme.FONT_SMALL,
+            bg=theme.WINDOW_BG,
+            fg=theme.MUTED,
         )
-        countdown_label.pack(pady=5)
-        self.countdown_label = countdown_label
+        self.info_label.pack(pady=(0, 6))
 
-        info_label = tk.Label(
-            page, text=f"Model: {self.settings_manager.get('ai_model')}",
-            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        # ── Pre-session view ──────────────────────────────────────────────────
+        self.pre_session_frame = tk.Frame(page, bg=theme.WINDOW_BG)
+
+        # Filler above to push content down to vertical center
+        tk.Frame(self.pre_session_frame, bg=theme.WINDOW_BG).pack(
+            side='top', fill='both', expand=True
         )
-        info_label.pack(pady=0)
-        self.info_label = info_label
+        inner = tk.Frame(self.pre_session_frame, bg=theme.WINDOW_BG)
+        inner.pack(side='top')
+        # Filler below
+        tk.Frame(self.pre_session_frame, bg=theme.WINDOW_BG).pack(
+            side='top', fill='both', expand=True
+        )
 
-        btn_start = theme.RoundedButton(
-            page, text="Start Day", command=self.start_tracking,
+        tk.Label(
+            inner,
+            text="SheepCat — Tracking My Work",
+            font=theme.FONT_H2,
+            bg=theme.WINDOW_BG,
+            fg=theme.PRIMARY,
+        ).pack(pady=(0, 24))
+
+        self.btn_start = theme.RoundedButton(
+            inner,
+            text="Start Day",
+            command=self.start_tracking,
             bg=theme.GREEN, fg=theme.WINDOW_BG,
-            font=theme.FONT_BODY_BOLD, width=20,
-            cursor='hand2', padx=8, pady=6,
+            font=theme.FONT_BODY_BOLD, width=22,
+            cursor='hand2', padx=10, pady=8,
         )
-        btn_start.pack(pady=5)
-        self.btn_start = btn_start
+        self.btn_start.pack(pady=8)
 
-        btn_continue = theme.RoundedButton(
-            page, text="Continue Day", command=self.continue_tracking,
+        self.btn_continue = theme.RoundedButton(
+            inner,
+            text="Continue Day",
+            command=self.continue_tracking,
             bg=theme.PRIMARY, fg=theme.TEXT,
-            font=theme.FONT_BODY_BOLD, width=20,
-            state=tk.DISABLED, cursor='hand2', padx=8, pady=6,
+            font=theme.FONT_BODY_BOLD, width=22,
+            state=tk.DISABLED, cursor='hand2', padx=10, pady=8,
         )
-        btn_continue.pack(pady=5)
-        self.btn_continue = btn_continue
+        self.btn_continue.pack(pady=8)
 
-        btn_add_task = theme.RoundedButton(
-            page, text="Add Task", command=self.add_task,
-            bg=theme.PRIMARY, fg=theme.TEXT,
-            font=theme.FONT_BODY_BOLD, width=20,
-            state=tk.DISABLED, cursor='hand2', padx=8, pady=6,
-        )
-        btn_add_task.pack(pady=5)
-        self.btn_add_task = btn_add_task
-
-        btn_todo = theme.RoundedButton(
-            page, text="Todo List", command=lambda: self.show_page("todo"),
-            bg=theme.SURFACE_BG, fg=theme.TEXT,
-            font=theme.FONT_BODY_BOLD, width=20,
-            cursor='hand2', padx=8, pady=6,
-        )
-        btn_todo.pack(pady=5)
-        self.btn_todo = btn_todo
-
-        btn_send_updates = theme.RoundedButton(
-            page, text="Send Updates", command=self.open_send_updates,
+        self.btn_send_updates_pre = theme.RoundedButton(
+            inner,
+            text="Send Updates",
+            command=self.open_send_updates,
             bg=theme.ACCENT, fg=theme.WINDOW_BG,
-            font=theme.FONT_BODY_BOLD, width=20,
+            font=theme.FONT_BODY_BOLD, width=22,
+            cursor='hand2', padx=10, pady=8,
+        )
+        self.btn_send_updates_pre.pack(pady=8)
+
+        # ── Session view (shown while tracking is active) ─────────────────────
+        self.session_frame = tk.Frame(page, bg=theme.WINDOW_BG)
+
+        # Timer / countdown bar with Stop button
+        timer_bar = tk.Frame(self.session_frame, bg=theme.SURFACE_BG, pady=8, padx=16)
+        timer_bar.pack(fill='x')
+
+        self.countdown_label = tk.Label(
+            timer_bar,
+            text="",
+            font=theme.FONT_BODY_BOLD,
+            bg=theme.SURFACE_BG,
+            fg=theme.PRIMARY,
+        )
+        self.countdown_label.pack(side='left')
+
+        self.btn_stop = theme.RoundedButton(
+            timer_bar,
+            text="Stop / End Day",
+            command=self.stop_tracking,
+            bg=theme.RED, fg=theme.TEXT,
+            font=theme.FONT_BODY_BOLD,
+            cursor='hand2', padx=8, pady=4,
+        )
+        self.btn_stop.pack(side='right')
+
+        self.btn_send_updates = theme.RoundedButton(
+            timer_bar,
+            text="Send Updates",
+            command=self.open_send_updates,
+            bg=theme.ACCENT, fg=theme.WINDOW_BG,
+            font=theme.FONT_BODY_BOLD,
+            cursor='hand2', padx=8, pady=4,
+        )
+        self.btn_send_updates.pack(side='right', padx=(0, 6))
+
+        # Visual separator
+        tk.Frame(self.session_frame, height=1, bg=theme.BORDER).pack(fill='x')
+
+        # ── Inline Task / To-Do entry ─────────────────────────────────────────
+        task_frame = tk.Frame(self.session_frame, bg=theme.WINDOW_BG, padx=30, pady=12)
+        task_frame.pack(fill='both', expand=True)
+
+        tk.Label(
+            task_frame,
+            text="Add Task / To-Do",
+            font=theme.FONT_H2,
+            bg=theme.WINDOW_BG,
+            fg=theme.TEXT,
+            anchor='w',
+        ).pack(fill='x', pady=(0, 10))
+
+        tk.Label(
+            task_frame,
+            text="Task Notes:",
+            font=theme.FONT_BODY_BOLD,
+            bg=theme.WINDOW_BG,
+            fg=theme.TEXT,
+            anchor='w',
+        ).pack(fill='x', pady=(0, 2))
+
+        self.inline_notes = tk.Text(
+            task_frame,
+            height=5, wrap=tk.WORD,
+            font=theme.FONT_BODY,
+            bg=theme.INPUT_BG, fg=theme.TEXT,
+            insertbackground=theme.TEXT,
+            relief='flat', padx=6, pady=4,
+        )
+        self.inline_notes.pack(fill='x', pady=(0, 10))
+
+        tk.Label(
+            task_frame,
+            text="Ticket ID(s) (comma-separated for multiple):",
+            font=theme.FONT_BODY_BOLD,
+            bg=theme.WINDOW_BG,
+            fg=theme.TEXT,
+            anchor='w',
+        ).pack(fill='x', pady=(0, 2))
+
+        self.inline_ticket_var = tk.StringVar()
+        tk.Entry(
+            task_frame,
+            textvariable=self.inline_ticket_var,
+            font=theme.FONT_BODY,
+            bg=theme.INPUT_BG, fg=theme.TEXT,
+            insertbackground=theme.TEXT,
+            relief='flat',
+        ).pack(fill='x', pady=(0, 10))
+
+        self.inline_resolved_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(
+            task_frame,
+            text="Resolved?",
+            variable=self.inline_resolved_var,
+            font=theme.FONT_BODY,
+            bg=theme.WINDOW_BG, fg=theme.TEXT,
+            selectcolor=theme.INPUT_BG,
+            activebackground=theme.WINDOW_BG,
+            activeforeground=theme.TEXT,
+            anchor='w',
+        ).pack(anchor='w', pady=(0, 10))
+
+        btn_row = tk.Frame(task_frame, bg=theme.WINDOW_BG)
+        btn_row.pack(fill='x', pady=4)
+
+        self.btn_add_task = theme.RoundedButton(
+            btn_row,
+            text="Add Task",
+            command=self._inline_add_task,
+            bg=theme.PRIMARY, fg=theme.TEXT,
+            font=theme.FONT_BODY_BOLD, width=16,
             cursor='hand2', padx=8, pady=6,
         )
-        btn_send_updates.pack(pady=5)
-        self.btn_send_updates = btn_send_updates
+        self.btn_add_task.pack(side='left')
 
-        btn_stop = theme.RoundedButton(
-            page, text="Stop / End Day", command=self.stop_tracking,
-            bg=theme.RED, fg=theme.TEXT,
-            font=theme.FONT_BODY_BOLD, width=20,
-            state=tk.DISABLED, cursor='hand2', padx=8, pady=6,
+        self.task_count_label = tk.Label(
+            btn_row,
+            text="",
+            font=theme.FONT_SMALL,
+            bg=theme.WINDOW_BG,
+            fg=theme.MUTED,
         )
-        btn_stop.pack(pady=5)
-        self.btn_stop = btn_stop
-    
+        self.task_count_label.pack(side='left', padx=12)
+
+        # Start in pre-session view
+        self._show_pre_session()
+
+    def _show_pre_session(self):
+        """Display the pre-session view (Start / Continue buttons)."""
+        self.session_frame.pack_forget()
+        self.pre_session_frame.pack(fill='both', expand=True)
+
+    def _show_session(self):
+        """Display the active-session view (timer + inline task form)."""
+        self.pre_session_frame.pack_forget()
+        self.session_frame.pack(fill='both', expand=True)
+        # Focus the notes field once the layout has settled
+        self.root.after(_FOCUS_DELAY_MS, lambda: self.inline_notes.focus_set())
+
+    def _inline_add_task(self):
+        """Submit the task entered in the home-screen inline form."""
+        if not self.is_running:
+            return
+
+        notes = self.inline_notes.get('1.0', 'end-1c').strip()
+        if not notes:
+            messagebox.showwarning(
+                "Input Required", "Please enter task notes.", parent=self.root
+            )
+            self.inline_notes.focus_set()
+            return
+
+        ticket = self.inline_ticket_var.get().strip()
+        resolved = self.inline_resolved_var.get()
+
+        details = {
+            'title': notes,
+            'ticket': ticket,
+            'resolved': resolved,
+        }
+
+        task_time = datetime.datetime.now()
+        details['timestamp'] = task_time
+        details['system_info'] = self.get_system_context()
+
+        if self.hourly_tasks:
+            duration = (task_time - self.hourly_tasks[-1]['timestamp']).total_seconds() / 60
+        elif self.hour_start_time is not None:
+            duration = (task_time - self.hour_start_time).total_seconds() / 60
+        else:
+            duration = 0
+
+        details['duration'] = duration
+        self.hourly_tasks.append(details)
+
+        count = len(self.hourly_tasks)
+        self.status_label.config(text=f"Task added \u2713 — {count} task(s) this period")
+        self.task_count_label.config(text=f"{count} task(s) this period")
+
+        # Clear the form ready for the next entry
+        self.inline_notes.delete('1.0', tk.END)
+        self.inline_ticket_var.set('')
+        self.inline_resolved_var.set(False)
+        self.inline_notes.focus_set()
+
+        threading.Thread(
+            target=self.save_task_immediately,
+            args=(details, task_time, duration),
+            daemon=True,
+        ).start()
+
+
     def _run_onboarding(self):
         """Engine handshake and (first-launch) model selection.
 
@@ -253,6 +475,11 @@ class WorkLoggerApp:
         page = TodoPage(self.container, self.todo_repository,
                         on_archive=self._archive_done_todos)
         self.pages["todo"] = page
+
+    def _create_about_page(self):
+        """Create the About Us & Sponsors page"""
+        page = AboutPage(self.container)
+        self.pages["about"] = page
     
     def _archive_done_todos(self):
         """Archive done todo items if the setting is enabled."""
@@ -293,11 +520,18 @@ class WorkLoggerApp:
     
     def show_page(self, page_name):
         """
-        Show the specified page.
-        
+        Show the specified page and highlight the matching nav button.
+
         Args:
-            page_name: Name of the page to show ("tracker" or "review")
+            page_name: Name of the page to show ("tracker", "review", etc.)
         """
+        # Update nav button styles to reflect the active page
+        for name, btn in self.nav_buttons.items():
+            if name == page_name:
+                btn.config(bg=theme.PRIMARY_D, fg=theme.TEXT)
+            else:
+                btn.config(bg=theme.SURFACE_BG, fg=theme.TEXT)
+
         # Hide all pages
         for page in self.pages.values():
             page.pack_forget()
@@ -810,8 +1044,12 @@ class WorkLoggerApp:
             minutes=self.settings_manager.get("checkin_interval_minutes"))
 
         self.status_label.config(
-            text=f"Continuing session from {session_start.strftime('%H:%M')} — add your next task"
+            text=f"Continuing from {session_start.strftime('%H:%M')} — add your next task below"
         )
+        self.task_count_label.config(text="")
+
+        # Switch to session view
+        self._show_session()
 
         # Start countdown timer
         self.update_countdown()
@@ -822,9 +1060,6 @@ class WorkLoggerApp:
         # Schedule next check-in
         interval_ms = self.settings_manager.get("checkin_interval_minutes") * 60 * 1000
         self.timer_id = self.root.after(interval_ms, self.hourly_checkin)
-
-        # Prompt for the next task
-        self.add_task()
 
     def start_tracking(self):
         # Cancel any existing timer before starting a new one
@@ -852,7 +1087,11 @@ class WorkLoggerApp:
         self.next_checkin_time = start_time + datetime.timedelta(
             minutes=self.settings_manager.get("checkin_interval_minutes"))
         
-        self.status_label.config(text=f"Day started - Add your first task")
+        self.status_label.config(text="Day started — add your first task below")
+        self.task_count_label.config(text="")
+
+        # Switch to the session view and focus the task notes field
+        self._show_session()
         
         # Start countdown timer
         self.update_countdown()
@@ -860,13 +1099,8 @@ class WorkLoggerApp:
         self.hour_start_time = start_time
         self.hourly_tasks = []
         
-        self.status_label.config(text=f"Day started - Add your first task")
-        
         # Gently surface any recurring tasks scheduled for today
         self._show_todays_recurring_tasks()
-        
-        # Add first task
-        self.add_task()
 
         # Timer using configured interval
         interval_ms = self.settings_manager.get("checkin_interval_minutes") * 60 * 1000
@@ -970,20 +1204,22 @@ class WorkLoggerApp:
             # Surface recurring tasks for today and let the user commit to any
             self._show_checkin_recurring_tasks()
 
-            if show_todo:
-                self.show_page("todo")
-            
             self.next_checkin_time = end_time + datetime.timedelta(
                 minutes=self.settings_manager.get("checkin_interval_minutes"))
             
-            # Reset for next hour
+            # Reset for next period
             self.hour_start_time = end_time
             self.hourly_tasks = []
-            
-            self.status_label.config(text=f"New hour started - Add a task")
-            
-            # Prompt for first task of new hour
-            self.add_task()
+            self.task_count_label.config(text="")
+
+            self.status_label.config(text="New period started — add your next task below")
+
+            if show_todo:
+                self.show_page("todo")
+            else:
+                # Return to home screen so the inline form is ready for input
+                self.show_page("tracker")
+                self.root.after(_FOCUS_DELAY_MS, lambda: self.inline_notes.focus_set())
         finally:
             self._checkin_in_progress = False
         
@@ -1335,12 +1571,17 @@ class WorkLoggerApp:
             self.countdown_id = None  
         
         self.countdown_label.config(text="")
-        self.status_label.config(text="Stopped")
+        self.status_label.config(text="Stopped — ready for a new day")
+        self.task_count_label.config(text="")
         self.btn_start.config(state=tk.NORMAL)
         self.btn_add_task.config(state=tk.DISABLED)
         self.btn_stop.config(state=tk.DISABLED)
         # After a clean stop the session is ended, so no unfinished session
         self.btn_continue.config(state=tk.DISABLED)
+
+        # Return to the pre-session view
+        self._show_pre_session()
+
         messagebox.showinfo("Done", "Tracking stopped and saved.")
     
     def update_countdown(self):
