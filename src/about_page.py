@@ -14,9 +14,9 @@ import theme
 
 # First Buy Me a Coffee supporter
 BMAC_FIRST_SPONSOR = {
-    "name":   "Our First Supporter! 🎉",
+    "name":   "Our First Supporter! 🎉 : Vivian Oliveres",
     "note":   "First to back SheepCat on Buy Me a Coffee",
-    "social": "",          # Add social URL when known, e.g. "https://twitter.com/..."
+    "social": "https://github.com/VivianOliveres",          # Add social URL when known, e.g. "https://twitter.com/..."
 }
 
 # First GitHub Sponsor – set to None until someone sponsors via GitHub
