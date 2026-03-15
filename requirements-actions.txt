@@ -1,0 +1,5 @@
+# Python dependencies for CI/CD action scripts
+# Install with: pip install -r requirements-actions.txt
+
+# Bluesky AT Protocol SDK — used by scripts/promote_release.py
+atproto~=0.0.65
