@@ -27,7 +27,7 @@ SheepCat is designed to help people keep track of their work activities in a non
 - Non-disruptive notifications that respect your focus time
 - Simple prompts to describe your activities
 
-### AI-Powered Summaries
+### 🤖 AI-Powered Summaries
 - Uses an external Large Language Model (LLM) via Ollama for generating intelligent summaries
 - Creates summaries based on your task descriptions and any references you provide
 - Generates interval summaries for each time period
