@@ -14,6 +14,7 @@ from settings_manager import SettingsManager
 from settings_page import SettingsPage
 from todo_repository import TodoRepository
 from todo_page import TodoPage
+from about_page import AboutPage
 import theme
 from onboarding import run_onboarding
 from ollama_client import check_connection, DEFAULT_OLLAMA_BASE_URL
@@ -69,6 +70,7 @@ class WorkLoggerApp:
         self._create_search_page()
         self._create_settings_page()
         self._create_todo_page()
+        self._create_about_page()
         
         # Show tracker page by default
         self.show_page("tracker")
@@ -101,6 +103,7 @@ class WorkLoggerApp:
         pages_menu.add_command(label="Search Notes", command=lambda: self.show_page("search"))
         pages_menu.add_command(label="Todo List", command=lambda: self.show_page("todo"))
         pages_menu.add_command(label="Settings", command=lambda: self.show_page("settings"))
+        pages_menu.add_command(label="About & Sponsors", command=lambda: self.show_page("about"))
         pages_menu.add_separator()
         pages_menu.add_command(label="Exit", command=self.root.quit)
     
@@ -243,6 +246,11 @@ class WorkLoggerApp:
         page = TodoPage(self.container, self.todo_repository,
                         on_archive=self._archive_done_todos)
         self.pages["todo"] = page
+
+    def _create_about_page(self):
+        """Create the About Us & Sponsors page"""
+        page = AboutPage(self.container)
+        self.pages["about"] = page
     
     def _archive_done_todos(self):
         """Archive done todo items if the setting is enabled."""
