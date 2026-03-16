@@ -4,9 +4,10 @@ SheepCat brand theme constants and ttk style configuration.
 Colour tokens and typography match the SheepCat style guide so the desktop
 application shares the same visual identity as the website.
 
-Two built-in themes are available:
+Three built-in themes are available:
   "Classic"      – original dark slate/indigo palette
   "Glass Purple" – soft modern purple with rounded, soothing tones
+  "LimeWire"     – totally radical early-2000s hot-pink & jet-black retro vibe
 """
 import tkinter as tk
 from tkinter import ttk
@@ -40,6 +41,20 @@ THEMES = {
         "TEXT":       "#faf5ff",   # Warm near-white – body text
         "MUTED":      "#d8b4fe",   # Muted lavender – secondary text
         "BORDER":     "#5b21b6",   # Violet border
+    },
+    "LimeWire": {
+        # Totally radical early-2000s hot-pink & jet-black retro vibe 🔥
+        "WINDOW_BG":  "#000000",   # Jet black – like staring into the void of a dial-up connection
+        "SURFACE_BG": "#0d0008",   # Almost-black with a hint of forbidden magenta
+        "INPUT_BG":   "#1a000f",   # Slightly less black – your text lives here now
+        "PRIMARY":    "#ff0099",   # SCREAMING neon pink – the one true LimeWire pink
+        "PRIMARY_D":  "#cc0077",   # Deep hot pink – for when the regular pink is too subtle (it isn't)
+        "ACCENT":     "#ff66cc",   # Bubblegum pink – like frosted tips for your UI
+        "GREEN":      "#39ff14",   # Neon lime green – for success (and nostalgia)
+        "RED":        "#ff3333",   # Angry red – for errors and bad vibes
+        "TEXT":       "#ffffff",   # Pure white – because contrast laws still apply in 2001
+        "MUTED":      "#ff99cc",   # Pastel pink – whispering sweet nothings in secondary text
+        "BORDER":     "#ff0099",   # Hot pink border – EVERYTHING gets a pink border. No exceptions.
     },
 }
 
