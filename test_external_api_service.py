@@ -202,6 +202,9 @@ class TestAPIServiceFactory(unittest.TestCase):
         def get(self, key, default=""):
             return self._data.get(key, default)
 
+        def get_credential(self, key):
+            return self._data.get(key, "")
+
     def _settings(self, **kwargs):
         return self._MockSettings(kwargs)
 
@@ -226,9 +229,11 @@ class TestAPIServiceFactory(unittest.TestCase):
 
     def test_get_configured_services_both(self):
         sm = self._settings(
+            jira_enabled=True,
             jira_host="https://example.atlassian.net",
             jira_email="user@example.com",
             jira_api_token="token",
+            azure_devops_enabled=True,
             azure_devops_org_url="https://dev.azure.com/myorg",
             azure_devops_pat="pat",
         )
@@ -245,6 +250,7 @@ class TestAPIServiceFactory(unittest.TestCase):
 
     def test_get_configured_services_jira_only(self):
         sm = self._settings(
+            jira_enabled=True,
             jira_host="https://example.atlassian.net",
             jira_email="user@example.com",
             jira_api_token="token",
@@ -255,6 +261,7 @@ class TestAPIServiceFactory(unittest.TestCase):
 
     def test_get_configured_services_ado_only(self):
         sm = self._settings(
+            azure_devops_enabled=True,
             azure_devops_org_url="https://dev.azure.com/myorg",
             azure_devops_pat="pat",
         )
@@ -262,6 +269,22 @@ class TestAPIServiceFactory(unittest.TestCase):
         self.assertEqual(len(services), 1)
         self.assertEqual(services[0].name, "Azure DevOps")
 
+    def test_get_configured_services_jira_disabled(self):
+        """A configured service that is disabled must not appear."""
+        sm = self._settings(
+            jira_enabled=False,
+            jira_host="https://example.atlassian.net",
+            jira_email="user@example.com",
+            jira_api_token="token",
+        )
+        services = APIServiceFactory.get_configured_services(sm)
+        self.assertEqual(services, [])
 
-if __name__ == "__main__":
-    unittest.main()
+    def test_get_configured_services_ado_disabled(self):
+        sm = self._settings(
+            azure_devops_enabled=False,
+            azure_devops_org_url="https://dev.azure.com/myorg",
+            azure_devops_pat="pat",
+        )
+        services = APIServiceFactory.get_configured_services(sm)
+        self.assertEqual(services, [])

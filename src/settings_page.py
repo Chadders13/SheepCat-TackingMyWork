@@ -10,7 +10,7 @@ import os
 
 import threading
 
-from settings_manager import SettingsManager, DEFAULT_SETTINGS, DATE_FORMAT_MAP, PROVIDER_DEFAULT_URLS
+from settings_manager import SettingsManager, DEFAULT_SETTINGS, DATE_FORMAT_MAP, PROVIDER_DEFAULT_URLS, DEFAULT_NOTES_FOLDER
 import theme
 from theme import THEME_NAMES
 from ollama_client import check_connection, get_running_models, DEFAULT_OLLAMA_BASE_URL
@@ -386,18 +386,28 @@ class SettingsPage(tk.Frame):
         tk.Label(
             form,
             text=(
-                "🔒  Credentials are stored locally in your settings file only.\n"
-                "No data is sent to external systems without your explicit confirmation."
+                "🔒  API tokens are stored securely in your OS keychain (Windows Credential\n"
+                "Manager / macOS Keychain / Linux Secret Service). Non-sensitive settings\n"
+                "are saved to the local settings file. No data is sent to external systems\n"
+                "without your explicit confirmation."
             ),
             font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.ACCENT,
             justify='left',
         ).grid(row=33, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 8))
 
         # -- Jira --
+        self.jira_enabled_var = tk.BooleanVar()
+        jira_header = tk.Frame(form, bg=theme.WINDOW_BG)
+        jira_header.grid(row=34, column=0, columnspan=3, sticky='w', padx=15, pady=(5, 2))
         tk.Label(
-            form, text="Jira (API v3)",
+            jira_header, text="Jira (API v3)",
             font=theme.FONT_BODY_BOLD, bg=theme.WINDOW_BG, fg=theme.TEXT,
-        ).grid(row=34, column=0, columnspan=3, sticky='w', padx=15, pady=(5, 2))
+        ).pack(side='left')
+        tk.Checkbutton(
+            jira_header, text="Enable", variable=self.jira_enabled_var,
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
+            activebackground=theme.WINDOW_BG, selectcolor=theme.INPUT_BG,
+        ).pack(side='left', padx=(12, 0))
 
         tk.Label(
             form, text="Jira Host URL:",
@@ -424,16 +434,31 @@ class SettingsPage(tk.Frame):
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
         ).grid(row=37, column=0, sticky='w', padx=15, pady=5)
         self.jira_token_var = tk.StringVar()
+        jira_token_frame = tk.Frame(form, bg=theme.WINDOW_BG)
+        jira_token_frame.grid(row=37, column=1, columnspan=2, sticky='w', padx=5, pady=5)
         tk.Entry(
-            form, textvariable=self.jira_token_var, width=50, show="*",
+            jira_token_frame, textvariable=self.jira_token_var, width=42, show="*",
             bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
-        ).grid(row=37, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        ).pack(side='left')
+        self._jira_token_status = tk.Label(
+            jira_token_frame, text="", font=theme.FONT_SMALL,
+            bg=theme.WINDOW_BG, fg=theme.MUTED,
+        )
+        self._jira_token_status.pack(side='left', padx=(6, 0))
 
         # -- Azure DevOps --
+        self.ado_enabled_var = tk.BooleanVar()
+        ado_header = tk.Frame(form, bg=theme.WINDOW_BG)
+        ado_header.grid(row=38, column=0, columnspan=3, sticky='w', padx=15, pady=(10, 2))
         tk.Label(
-            form, text="Azure DevOps",
+            ado_header, text="Azure DevOps",
             font=theme.FONT_BODY_BOLD, bg=theme.WINDOW_BG, fg=theme.TEXT,
-        ).grid(row=38, column=0, columnspan=3, sticky='w', padx=15, pady=(10, 2))
+        ).pack(side='left')
+        tk.Checkbutton(
+            ado_header, text="Enable", variable=self.ado_enabled_var,
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
+            activebackground=theme.WINDOW_BG, selectcolor=theme.INPUT_BG,
+        ).pack(side='left', padx=(12, 0))
 
         tk.Label(
             form, text="Organization / Project URL:",
@@ -450,10 +475,133 @@ class SettingsPage(tk.Frame):
             font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
         ).grid(row=40, column=0, sticky='w', padx=15, pady=5)
         self.ado_pat_var = tk.StringVar()
+        ado_pat_frame = tk.Frame(form, bg=theme.WINDOW_BG)
+        ado_pat_frame.grid(row=40, column=1, columnspan=2, sticky='w', padx=5, pady=5)
         tk.Entry(
-            form, textvariable=self.ado_pat_var, width=50, show="*",
+            ado_pat_frame, textvariable=self.ado_pat_var, width=42, show="*",
             bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
-        ).grid(row=40, column=1, columnspan=2, sticky='w', padx=5, pady=(5, 15))
+        ).pack(side='left')
+        self._ado_pat_status = tk.Label(
+            ado_pat_frame, text="", font=theme.FONT_SMALL,
+            bg=theme.WINDOW_BG, fg=theme.MUTED,
+        )
+        self._ado_pat_status.pack(side='left', padx=(6, 0))
+
+        # ---- Note-Taking App Settings ----
+        tk.Label(
+            form, text="Note-Taking App Settings",
+            font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
+        ).grid(row=41, column=0, columnspan=3, sticky='w', padx=15, pady=(20, 2))
+
+        tk.Label(
+            form,
+            text=(
+                "Export formatted work summaries to Obsidian or Notable.\n"
+                "Enable each integration and provide credentials below."
+            ),
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.ACCENT,
+            justify='left',
+        ).grid(row=42, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 8))
+
+        # -- Obsidian --
+        self.obsidian_enabled_var = tk.BooleanVar()
+        obsidian_header = tk.Frame(form, bg=theme.WINDOW_BG)
+        obsidian_header.grid(row=43, column=0, columnspan=3, sticky='w', padx=15, pady=(5, 2))
+        tk.Label(
+            obsidian_header, text="Obsidian (Local REST API plugin)",
+            font=theme.FONT_BODY_BOLD, bg=theme.WINDOW_BG, fg=theme.TEXT,
+        ).pack(side='left')
+        tk.Checkbutton(
+            obsidian_header, text="Enable", variable=self.obsidian_enabled_var,
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
+            activebackground=theme.WINDOW_BG, selectcolor=theme.INPUT_BG,
+        ).pack(side='left', padx=(12, 0))
+
+        tk.Label(
+            form,
+            text=(
+                "Requires the 'Local REST API' community plugin installed and running in Obsidian.\n"
+                "Default host: http://localhost:27123"
+            ),
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
+            justify='left',
+        ).grid(row=44, column=0, columnspan=3, sticky='w', padx=30, pady=(0, 4))
+
+        tk.Label(
+            form, text="Host URL:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=45, column=0, sticky='w', padx=15, pady=5)
+        self.obsidian_host_var = tk.StringVar()
+        tk.Entry(
+            form, textvariable=self.obsidian_host_var, width=50,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).grid(row=45, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+
+        tk.Label(
+            form, text="Notes Folder:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=46, column=0, sticky='w', padx=15, pady=5)
+        self.obsidian_folder_var = tk.StringVar()
+        tk.Entry(
+            form, textvariable=self.obsidian_folder_var, width=50,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).grid(row=46, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+
+        tk.Label(
+            form, text="API Key:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=47, column=0, sticky='w', padx=15, pady=5)
+        self.obsidian_key_var = tk.StringVar()
+        obsidian_key_frame = tk.Frame(form, bg=theme.WINDOW_BG)
+        obsidian_key_frame.grid(row=47, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        tk.Entry(
+            obsidian_key_frame, textvariable=self.obsidian_key_var, width=42, show="*",
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).pack(side='left')
+        self._obsidian_key_status = tk.Label(
+            obsidian_key_frame, text="", font=theme.FONT_SMALL,
+            bg=theme.WINDOW_BG, fg=theme.MUTED,
+        )
+        self._obsidian_key_status.pack(side='left', padx=(6, 0))
+
+        # -- Notable --
+        self.notable_enabled_var = tk.BooleanVar()
+        notable_header = tk.Frame(form, bg=theme.WINDOW_BG)
+        notable_header.grid(row=48, column=0, columnspan=3, sticky='w', padx=15, pady=(10, 2))
+        tk.Label(
+            notable_header, text="Notable",
+            font=theme.FONT_BODY_BOLD, bg=theme.WINDOW_BG, fg=theme.TEXT,
+        ).pack(side='left')
+        tk.Checkbutton(
+            notable_header, text="Enable", variable=self.notable_enabled_var,
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
+            activebackground=theme.WINDOW_BG, selectcolor=theme.INPUT_BG,
+        ).pack(side='left', padx=(12, 0))
+
+        tk.Label(
+            form,
+            text="Point to the directory where Notable stores its Markdown notes.",
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
+            justify='left',
+        ).grid(row=49, column=0, columnspan=3, sticky='w', padx=30, pady=(0, 4))
+
+        tk.Label(
+            form, text="Notes Directory:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=50, column=0, sticky='w', padx=15, pady=5)
+        self.notable_dir_var = tk.StringVar()
+        notable_dir_frame = tk.Frame(form, bg=theme.WINDOW_BG)
+        notable_dir_frame.grid(row=50, column=1, columnspan=2, sticky='w', padx=5, pady=(5, 15))
+        tk.Entry(
+            notable_dir_frame, textvariable=self.notable_dir_var, width=42,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).pack(side='left')
+        theme.RoundedButton(
+            notable_dir_frame, text="Browse…",
+            command=self._browse_notable_directory,
+            bg=theme.SURFACE_BG, fg=theme.TEXT,
+            font=theme.FONT_SMALL, width=8, cursor='hand2',
+        ).pack(side='left', padx=(6, 0))
 
         # ---- Buttons ----
         button_frame = tk.Frame(self, bg=theme.WINDOW_BG)
@@ -558,6 +706,12 @@ class SettingsPage(tk.Frame):
         directory = filedialog.askdirectory(title="Select Archive File Directory")
         if directory:
             self.archive_dir_var.set(directory)
+
+    def _browse_notable_directory(self):
+        """Open a directory chooser and populate the Notable notes directory field."""
+        directory = filedialog.askdirectory(title="Select Notable Notes Directory")
+        if directory:
+            self.notable_dir_var.set(directory)
 
     def _on_archive_toggled(self):
         """Enable or disable the archive trigger and directory widgets."""
@@ -680,11 +834,36 @@ class SettingsPage(tk.Frame):
         self.daily_context_text.insert("1.0", sm.get("daily_summary_extra_context", ""))
 
         # External API settings
+        self.jira_enabled_var.set(bool(sm.get("jira_enabled", True)))
         self.jira_host_var.set(sm.get("jira_host", ""))
         self.jira_email_var.set(sm.get("jira_email", ""))
-        self.jira_token_var.set(sm.get("jira_api_token", ""))
+        # Token fields: show placeholder when a token is already stored in keychain
+        jira_token = sm.get_credential("jira_api_token")
+        self.jira_token_var.set("")
+        self._jira_token_status.config(
+            text="🔑 Token stored" if jira_token else "",
+            fg=theme.GREEN if jira_token else theme.MUTED,
+        )
+        self.ado_enabled_var.set(bool(sm.get("azure_devops_enabled", True)))
         self.ado_org_url_var.set(sm.get("azure_devops_org_url", ""))
-        self.ado_pat_var.set(sm.get("azure_devops_pat", ""))
+        ado_pat = sm.get_credential("azure_devops_pat")
+        self.ado_pat_var.set("")
+        self._ado_pat_status.config(
+            text="🔑 Token stored" if ado_pat else "",
+            fg=theme.GREEN if ado_pat else theme.MUTED,
+        )
+        # Note-taking app settings
+        self.obsidian_enabled_var.set(bool(sm.get("obsidian_enabled", False)))
+        self.obsidian_host_var.set(sm.get("obsidian_host", "http://localhost:27123"))
+        self.obsidian_folder_var.set(sm.get("obsidian_notes_folder", DEFAULT_NOTES_FOLDER))
+        obsidian_key = sm.get_credential("obsidian_api_key")
+        self.obsidian_key_var.set("")
+        self._obsidian_key_status.config(
+            text="🔑 Key stored" if obsidian_key else "",
+            fg=theme.GREEN if obsidian_key else theme.MUTED,
+        )
+        self.notable_enabled_var.set(bool(sm.get("notable_enabled", False)))
+        self.notable_dir_var.set(sm.get("notable_notes_directory", ""))
 
         self._update_preview()
         self._update_summary_preview()
@@ -735,11 +914,33 @@ class SettingsPage(tk.Frame):
                self.daily_context_text.get("1.0", tk.END).strip())
 
         # External API settings
+        sm.set("jira_enabled", self.jira_enabled_var.get())
         sm.set("jira_host", self.jira_host_var.get().strip())
         sm.set("jira_email", self.jira_email_var.get().strip())
-        sm.set("jira_api_token", self.jira_token_var.get().strip())
+        # Only update the token when the field is non-empty (user typed a new value).
+        jira_token = self.jira_token_var.get().strip()
+        if jira_token:
+            sm.set_credential("jira_api_token", jira_token)
+            self.jira_token_var.set("")
+            self._jira_token_status.config(text="🔑 Token stored", fg=theme.GREEN)
+        sm.set("azure_devops_enabled", self.ado_enabled_var.get())
         sm.set("azure_devops_org_url", self.ado_org_url_var.get().strip())
-        sm.set("azure_devops_pat", self.ado_pat_var.get().strip())
+        ado_pat = self.ado_pat_var.get().strip()
+        if ado_pat:
+            sm.set_credential("azure_devops_pat", ado_pat)
+            self.ado_pat_var.set("")
+            self._ado_pat_status.config(text="🔑 Token stored", fg=theme.GREEN)
+        # Note-taking app settings
+        sm.set("obsidian_enabled", self.obsidian_enabled_var.get())
+        sm.set("obsidian_host", self.obsidian_host_var.get().strip())
+        sm.set("obsidian_notes_folder", self.obsidian_folder_var.get().strip() or DEFAULT_NOTES_FOLDER)
+        obsidian_key = self.obsidian_key_var.get().strip()
+        if obsidian_key:
+            sm.set_credential("obsidian_api_key", obsidian_key)
+            self.obsidian_key_var.set("")
+            self._obsidian_key_status.config(text="🔑 Key stored", fg=theme.GREEN)
+        sm.set("notable_enabled", self.notable_enabled_var.get())
+        sm.set("notable_notes_directory", self.notable_dir_var.get().strip())
 
         if sm.save():
             self.status_label.config(text="Settings saved successfully!", fg=theme.GREEN)
