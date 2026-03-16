@@ -19,6 +19,7 @@ import theme
 from onboarding import run_onboarding
 from ollama_client import check_connection, DEFAULT_OLLAMA_BASE_URL
 from send_updates_dialog import SendUpdatesDialog
+from send_notes_dialog import SendNotesDialog
  
 _NO_TICKET_LABEL = "(no ticket)"
 # Delay (ms) before focusing the inline notes field after a layout change.
@@ -215,6 +216,16 @@ class WorkLoggerApp:
         )
         self.btn_send_updates_pre.pack(pady=8)
 
+        self.btn_send_notes_pre = theme.RoundedButton(
+            inner,
+            text="Export Notes",
+            command=self.open_send_notes,
+            bg=theme.PRIMARY, fg=theme.TEXT,
+            font=theme.FONT_BODY_BOLD, width=22,
+            cursor='hand2', padx=10, pady=8,
+        )
+        self.btn_send_notes_pre.pack(pady=8)
+
         # ── Session view (shown while tracking is active) ─────────────────────
         self.session_frame = tk.Frame(page, bg=theme.WINDOW_BG)
 
@@ -250,6 +261,16 @@ class WorkLoggerApp:
             cursor='hand2', padx=8, pady=4,
         )
         self.btn_send_updates.pack(side='right', padx=(0, 6))
+
+        self.btn_send_notes = theme.RoundedButton(
+            timer_bar,
+            text="Export Notes",
+            command=self.open_send_notes,
+            bg=theme.PRIMARY, fg=theme.TEXT,
+            font=theme.FONT_BODY_BOLD,
+            cursor='hand2', padx=8, pady=4,
+        )
+        self.btn_send_notes.pack(side='right', padx=(0, 6))
 
         # Visual separator
         tk.Frame(self.session_frame, height=1, bg=theme.BORDER).pack(fill='x')
@@ -554,6 +575,13 @@ class WorkLoggerApp:
         without explicit user confirmation inside the dialog.
         """
         SendUpdatesDialog(self.root, self.settings_manager, self.data_repository)
+
+    def open_send_notes(self):
+        """Open the Send Notes dialog to export a formatted work summary to a
+        note-taking app (Obsidian or Notable).  No data leaves the machine
+        without explicit user confirmation inside the dialog.
+        """
+        SendNotesDialog(self.root, self.settings_manager, self.data_repository)
  
     def ask_task_details(self):
         dialog = tk.Toplevel(self.root)

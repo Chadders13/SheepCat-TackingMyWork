@@ -7,6 +7,9 @@ import json
 import os
 import datetime
 
+# Default folder name used when exporting notes to Obsidian or similar apps.
+DEFAULT_NOTES_FOLDER = "SheepCat"
+
 
 DEFAULT_SETTINGS = {
     "ai_provider": "Ollama",
@@ -29,11 +32,22 @@ DEFAULT_SETTINGS = {
     "hourly_summary_extra_context": "",   # Extra instructions appended to interval summary prompts
     "daily_summary_extra_context": "",    # Extra instructions appended to end-of-day summary prompts
     # ── External API integrations (opt-in, explicit consent required) ─────────
+    # Ticket systems
+    "jira_enabled": True,
     "jira_host": "",          # e.g. https://yourcompany.atlassian.net
     "jira_email": "",         # Atlassian account email
-    "jira_api_token": "",     # Jira API token (never committed to source)
+    "jira_api_token": "",     # Jira API token — prefer OS keychain over this field
+    "azure_devops_enabled": True,
     "azure_devops_org_url": "",   # e.g. https://dev.azure.com/myorg/myproject
-    "azure_devops_pat": "",       # Personal Access Token
+    "azure_devops_pat": "",       # Personal Access Token — prefer OS keychain
+    # Note-taking apps
+    "obsidian_enabled": False,
+    "obsidian_host": "http://localhost:27123",  # Obsidian Local REST API plugin
+    "obsidian_vault_name": "",   # Optional: target vault name
+    "obsidian_notes_folder": DEFAULT_NOTES_FOLDER,  # Folder inside the vault for notes
+    # obsidian_api_key is stored in the OS keychain under "obsidian_api_key"
+    "notable_enabled": False,
+    "notable_notes_directory": "",  # Directory where Notable stores notes
 }
 
 # Default API URLs for each supported provider
@@ -143,3 +157,48 @@ class SettingsManager:
             filename = f"{name}.csv"
 
         return os.path.join(directory, filename)
+
+    # ------------------------------------------------------------------
+    # Secure credential helpers
+    # ------------------------------------------------------------------
+
+    def get_credential(self, key: str) -> str:
+        """Return a credential (API token/PAT), preferring the OS keychain.
+
+        Falls back to the value stored in the settings JSON when the keychain
+        is unavailable or the key has not been migrated yet.
+
+        Args:
+            key: The credential identifier, e.g. ``"jira_api_token"``.
+        """
+        import credential_store
+        token = credential_store.get_token(key)
+        if token:
+            return token
+        # Graceful fallback: plain-text settings file (legacy / no keyring).
+        return self.settings.get(key, "")
+
+    def set_credential(self, key: str, value: str) -> bool:
+        """Persist *value* in the OS keychain under *key*.
+
+        When the keychain is unavailable the value is stored in the settings
+        JSON instead (with a visible warning in the UI).
+
+        Args:
+            key:   The credential identifier, e.g. ``"jira_api_token"``.
+            value: The secret string to store.
+
+        Returns:
+            ``True`` when stored in the keychain, ``False`` when the keychain
+            was unavailable and the fallback settings file was used.
+        """
+        import credential_store
+        stored_in_keychain = credential_store.set_token(key, value)
+        if stored_in_keychain:
+            # Remove the plain-text copy from settings if it exists.
+            if key in self.settings:
+                self.settings[key] = ""
+            return True
+        # Fallback: store in settings JSON (no keyring backend available).
+        self.settings[key] = value
+        return False
