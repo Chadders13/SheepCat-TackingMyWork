@@ -68,6 +68,7 @@ For detailed installation and setup instructions, see **[SETUP.md](SETUP.md)**.
 - **[SETUP.md](SETUP.md)** - Complete installation and setup instructions
 - **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Quick command reference and common tasks
 - **[NEW_FEATURES.md](NEW_FEATURES.md)** - Guide to the menu system, review page, and data architecture
+- **[COMMIT_SIGNING.md](COMMIT_SIGNING.md)** - How to sign commits (required for the `main` branch)
 
 ## 🤖 LLM Configuration
 
@@ -113,6 +114,8 @@ This project is licensed under the AGPLv3. It is free for personal use and open-
 ## 🤝 Contributing
 
 Contributions are welcome! Whether you're neurodivergent yourself or an ally, we'd love to hear your ideas for making this tool more helpful and accessible.
+
+> **Note:** All contributions to the `main` branch must use **signed commits**. See **[COMMIT_SIGNING.md](COMMIT_SIGNING.md)** for a step-by-step setup guide.
 
 ---
 
