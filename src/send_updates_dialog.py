@@ -540,18 +540,17 @@ class SendUpdatesDialog:
         When multiple work-log entries are provided they are all included in
         the prompt so the AI can produce a combined summary.
         """
-        ticket_id = ticket_info.get("id", "")
         ticket_summary = ticket_info.get("summary", "")
 
-        # Build a compact log of all selected entries
+        # Build a compact log of all selected entries — omit timestamps and
+        # dates because the ticketing system already records when the comment
+        # was posted.
         entry_lines = []
         for task in tasks:
             title = task.get("Title", "").replace("\n", " ")
             duration = task.get("Duration (Min)", "")
             ai_sum = task.get("AI Summary", "").strip()
-            start = task.get("Start Time", "")
-            time_str = start[11:16] if len(start) >= 16 else start
-            line = f"- [{time_str}] {title} ({duration} min)"
+            line = f"- {title} ({duration} min)"
             if ai_sum:
                 line += f"\n  Summary: {ai_sum}"
             entry_lines.append(line)
@@ -559,11 +558,16 @@ class SendUpdatesDialog:
         entries_block = "\n".join(entry_lines)
 
         prompt = (
-            f"I worked on ticket {ticket_id} titled '{ticket_summary}'.\n"
+            f"The following work was done on a ticket titled '{ticket_summary}'.\n"
             f"Work log entries:\n{entries_block}\n\n"
             "Write a concise, professional progress update comment (2-4 sentences) "
-            "that combines all the above entries and is suitable for posting to a "
-            "ticket tracking system. Use plain text, no markdown formatting."
+            "that combines all the above entries and is suitable for posting directly "
+            "to the ticket as a comment. "
+            "Do NOT include the ticket number or any dates — the ticketing system "
+            "already records those. "
+            "Only mention another ticket number if the work directly references or "
+            "depends on a different ticket. "
+            "Use plain text, no markdown formatting."
         )
 
         payload = {
