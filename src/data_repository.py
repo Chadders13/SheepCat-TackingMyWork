@@ -101,3 +101,18 @@ class DataRepository(ABC):
             List of matching task dictionaries, oldest first.
         """
         pass
+
+    @abstractmethod
+    def update_task_fields(self, task_id: str, ticket: str, title: str) -> bool:
+        """
+        Update the ticket number and title of a task.
+
+        Args:
+            task_id: Unique identifier for the task (implementation specific)
+            ticket: New ticket number/ID
+            title: New task title/message
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        pass
