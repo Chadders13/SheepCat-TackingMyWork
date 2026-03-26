@@ -4,5 +4,8 @@
 # HTTP requests for Ollama API
 requests>=2.31.0
 
+# MCP (Model Context Protocol) SDK — used by GitMCPClient for Git context nudges
+mcp>=1.0.0
+
 # Application packaging
 pyinstaller>=6.0.0
