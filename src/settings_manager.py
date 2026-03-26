@@ -40,6 +40,12 @@ DEFAULT_SETTINGS = {
     "jira_api_token": "",     # Jira API token (never committed to source)
     "azure_devops_org_url": "",   # e.g. https://dev.azure.com/myorg/myproject
     "azure_devops_pat": "",       # Personal Access Token
+    # ── Git MCP context (opt-in) ──────────────────────────────────────────────
+    # When enabled, the check-in timer fetches uncommitted git changes via the
+    # official @modelcontextprotocol/server-git server and passes them to Ollama
+    # to generate a personalised nudge instead of a blank prompt.
+    "mcp_enabled": False,         # Enable Git MCP context-aware nudges
+    "mcp_repo_path": ".",         # Path to the git repository to inspect
 }
 
 # Default API URLs for each supported provider
