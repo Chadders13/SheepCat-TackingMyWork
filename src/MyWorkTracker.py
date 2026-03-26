@@ -7,6 +7,7 @@ import platform
 import requests
 import json
 import threading
+from typing import Optional
 from csv_data_repository import CSVDataRepository
 from review_log_page import ReviewLogPage
 from search_notes_page import SearchNotesPage
@@ -59,6 +60,9 @@ class WorkLoggerApp:
         self.countdown_id = None
         self.next_checkin_time = None
         self._checkin_in_progress = False  # Guard against stacked check-in prompts
+        # The start_time string of the most recently saved task (used by the
+        # chain-based timing logic to back-fill the previous task's duration).
+        self._last_task_logged_start_time: Optional[str] = None
         
         # Create top navigation bar (replaces old menu bar)
         self._create_nav_bar()
@@ -355,6 +359,19 @@ class WorkLoggerApp:
         # Focus the notes field once the layout has settled
         self.root.after(_FOCUS_DELAY_MS, lambda: self.inline_notes.focus_set())
 
+    def _get_special_task_duration(self, notes: str) -> Optional[float]:
+        """Return the preset duration (minutes) if *notes* matches a special task, else None.
+
+        The match is case-insensitive and checks whether the special-task name
+        appears anywhere in the notes text.
+        """
+        special_tasks = self.settings_manager.get("special_tasks", {})
+        notes_lower = notes.lower()
+        for task_name, duration_min in special_tasks.items():
+            if task_name.lower() in notes_lower:
+                return float(duration_min)
+        return None
+
     def _inline_add_task(self):
         """Submit the task entered in the home-screen inline form."""
         if not self.is_running:
@@ -381,12 +398,32 @@ class WorkLoggerApp:
         details['timestamp'] = task_time
         details['system_info'] = self.get_system_context()
 
+        # ── Chain-based timing ────────────────────────────────────────────────
+        # Capture the start-time string that was written to the CSV for the
+        # previous task so the background thread can back-fill its duration.
+        prev_logged_start = self._last_task_logged_start_time
+
+        # Time elapsed since the previous task started (used to finalise that
+        # task's duration in the CSV).
         if self.hourly_tasks:
-            duration = (task_time - self.hourly_tasks[-1]['timestamp']).total_seconds() / 60
+            prev_chain_duration = (
+                task_time - self.hourly_tasks[-1]['timestamp']
+            ).total_seconds() / 60
         elif self.hour_start_time is not None:
-            duration = (task_time - self.hour_start_time).total_seconds() / 60
+            prev_chain_duration = (
+                task_time - self.hour_start_time
+            ).total_seconds() / 60
         else:
-            duration = 0
+            prev_chain_duration = None
+
+        # ── Duration for THIS task ────────────────────────────────────────────
+        # Special tasks get a user-configured fixed duration.
+        # Regular tasks start with 0 and are finalised when the next task arrives.
+        special_duration = self._get_special_task_duration(notes)
+        if special_duration is not None:
+            duration = special_duration
+        else:
+            duration = 0.0
 
         details['duration'] = duration
         self.hourly_tasks.append(details)
@@ -403,7 +440,7 @@ class WorkLoggerApp:
 
         threading.Thread(
             target=self.save_task_immediately,
-            args=(details, task_time, duration),
+            args=(details, task_time, duration, prev_logged_start, prev_chain_duration),
             daemon=True,
         ).start()
 
@@ -1056,8 +1093,7 @@ class WorkLoggerApp:
 
         self.hour_start_time = now
         self.hourly_tasks = []
-
-        # Schedule next check-in
+        self._last_task_logged_start_time = None
         interval_ms = self.settings_manager.get("checkin_interval_minutes") * 60 * 1000
         self.timer_id = self.root.after(interval_ms, self.hourly_checkin)
 
@@ -1098,8 +1134,7 @@ class WorkLoggerApp:
         
         self.hour_start_time = start_time
         self.hourly_tasks = []
-        
-        # Gently surface any recurring tasks scheduled for today
+        self._last_task_logged_start_time = None
         self._show_todays_recurring_tasks()
 
         # Timer using configured interval
@@ -1118,16 +1153,25 @@ class WorkLoggerApp:
         task_time = datetime.datetime.now()
         details['timestamp'] = task_time
         details['system_info'] = self.get_system_context()
-        
-        # Calculate duration from last task or hour start
+
+        # ── Chain-based timing ────────────────────────────────────────────────
+        prev_logged_start = self._last_task_logged_start_time
+
         if self.hourly_tasks:
-            last_task_time = self.hourly_tasks[-1]['timestamp']
-            duration = (task_time - last_task_time).total_seconds() / 60
+            prev_chain_duration = (
+                task_time - self.hourly_tasks[-1]['timestamp']
+            ).total_seconds() / 60
         elif self.hour_start_time is not None:
-            duration = (task_time - self.hour_start_time).total_seconds() / 60
+            prev_chain_duration = (
+                task_time - self.hour_start_time
+            ).total_seconds() / 60
         else:
-            duration = 0
-        
+            prev_chain_duration = None
+
+        # Special task detection
+        special_duration = self._get_special_task_duration(details.get('title', ''))
+        duration = special_duration if special_duration is not None else 0.0
+
         details['duration'] = duration
         
         # Save to list for hourly summary
@@ -1136,13 +1180,42 @@ class WorkLoggerApp:
         self.status_label.config(text=f"Logging: {details['title']}...")
         
         # Save immediately in background thread
-        threading.Thread(target=self.save_task_immediately, args=(details, task_time, duration)).start()
+        threading.Thread(
+            target=self.save_task_immediately,
+            args=(details, task_time, duration, prev_logged_start, prev_chain_duration),
+        ).start()
         
         self.status_label.config(text=f"Tracking: {len(self.hourly_tasks)} task(s) this hour")
     
-    def save_task_immediately(self, task_details, task_time, duration):
-        """Save a single task immediately with LLM summary"""
-        # Generate AI summary for this task
+    def save_task_immediately(
+        self,
+        task_details,
+        task_time,
+        duration,
+        prev_logged_start: Optional[str] = None,
+        prev_chain_duration: Optional[float] = None,
+    ):
+        """Save a single task immediately with LLM summary.
+
+        Chain-based timing
+        ------------------
+        When *prev_logged_start* and *prev_chain_duration* are provided this
+        method also back-fills the end time and duration of the previous task in
+        the CSV so that each task's duration reflects how long the user actually
+        spent on it (from when it was logged until the *next* task was logged)
+        rather than how long they waited before logging the current task.
+        """
+        task_time_str = task_time.strftime("%Y-%m-%d %H:%M:%S")
+
+        # ── Back-fill the previous task's timing ─────────────────────────────
+        if prev_logged_start and prev_chain_duration is not None:
+            self.data_repository.update_tasks_timing_by_start_time(
+                prev_logged_start,
+                task_time_str,
+                prev_chain_duration,
+            )
+
+        # ── Generate AI summary for this task ─────────────────────────────────
         ai_summary = self.generate_ai_markdown(task_details, round(duration, 2))
         
         # Parse tickets
@@ -1154,6 +1227,13 @@ class WorkLoggerApp:
         # resolved may be a per-ticket dict (new format) or a bool (legacy)
         resolved_info = task_details.get('resolved', False)
 
+        # For special tasks, project the end time forward by the fixed duration
+        if duration > 0:
+            projected_end = task_time + datetime.timedelta(minutes=duration)
+            end_time_str = projected_end.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            end_time_str = task_time_str  # will be updated when the next task is logged
+
         # Write each ticket row immediately using repository
         for ticket in tickets:
             if isinstance(resolved_info, dict):
@@ -1162,8 +1242,8 @@ class WorkLoggerApp:
                 resolved = "Yes" if resolved_info else "No"
 
             task_data = {
-                'start_time': task_time.strftime("%Y-%m-%d %H:%M:%S"),
-                'end_time': task_time.strftime("%Y-%m-%d %H:%M:%S"),
+                'start_time': task_time_str,
+                'end_time': end_time_str,
                 'duration': round(duration, 2),
                 'ticket': ticket,
                 'title': task_details.get('title'),
@@ -1176,6 +1256,9 @@ class WorkLoggerApp:
                 print(f"Task logged: {task_data}")
             else:
                 print(f"Failed to log task: {task_data}")
+
+        # Record this task's start time so the *next* task can back-fill it.
+        self._last_task_logged_start_time = task_time_str
  
     def hourly_checkin(self):
         if not self.is_running: return
@@ -1210,6 +1293,7 @@ class WorkLoggerApp:
             # Reset for next period
             self.hour_start_time = end_time
             self.hourly_tasks = []
+            self._last_task_logged_start_time = None
             self.task_count_label.config(text="")
 
             self.status_label.config(text="New period started — add your next task below")

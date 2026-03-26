@@ -288,6 +288,95 @@ class CSVDataRepository(DataRepository):
             print(f"Error updating task resolved status: {e}")
             return False
 
+    def update_task_timing(self, task_id: str, end_time: str, duration: float) -> bool:
+        """
+        Update the end time and duration of a previously saved task row.
+
+        The columns updated are:
+
+        * Column index 1 – ``End Time``
+        * Column index 2 – ``Duration (Min)``
+
+        Args:
+            task_id: Encoded as ``"{file_path}||{row_index}"``
+            end_time: New end time string in ``"%Y-%m-%d %H:%M:%S"`` format
+            duration: Actual duration in minutes
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            file_path, row_idx = self._decode_task_id(task_id)
+            if file_path is None:
+                file_path = self._get_today_file_path()
+
+            rows = []
+            with open(file_path, mode='r', encoding='utf-8') as file:
+                reader = csv.reader(file)
+                rows = list(reader)
+
+            if 0 < row_idx < len(rows):
+                rows[row_idx][1] = end_time
+                rows[row_idx][2] = str(round(duration, 2))
+
+                with open(file_path, mode='w', newline='', encoding='utf-8') as file:
+                    writer = csv.writer(file)
+                    writer.writerows(rows)
+
+                return True
+            else:
+                print(f"Invalid task_id for timing update: {task_id}")
+                return False
+
+        except Exception as e:
+            print(f"Error updating task timing: {e}")
+            return False
+
+    def update_tasks_timing_by_start_time(
+        self, start_time_str: str, end_time_str: str, duration: float
+    ) -> bool:
+        """
+        Update the end time and duration of all task rows that share a given start time.
+
+        When a task spans multiple tickets each ticket generates its own row; all
+        of those rows share the same ``Start Time`` value and should be updated
+        together when chain-based timing is applied.
+
+        Args:
+            start_time_str: The ``Start Time`` value to match (``"%Y-%m-%d %H:%M:%S"``).
+            end_time_str: New end time string in the same format.
+            duration: Actual duration in minutes to write to every matching row.
+
+        Returns:
+            bool: True if at least one row was updated, False otherwise.
+        """
+        try:
+            file_path = self._get_today_file_path()
+            rows = []
+            with open(file_path, mode='r', encoding='utf-8') as file:
+                reader = csv.reader(file)
+                rows = list(reader)
+
+            updated = False
+            for i, row in enumerate(rows):
+                if i == 0:
+                    continue  # skip header
+                if row and row[0] == start_time_str:
+                    row[1] = end_time_str
+                    row[2] = str(round(duration, 2))
+                    updated = True
+
+            if updated:
+                with open(file_path, mode='w', newline='', encoding='utf-8') as file:
+                    writer = csv.writer(file)
+                    writer.writerows(rows)
+
+            return updated
+
+        except Exception as e:
+            print(f"Error updating task timing by start time: {e}")
+            return False
+
     def search_tasks(self, keyword: str, start_date: Optional[datetime.date] = None,
                      end_date: Optional[datetime.date] = None) -> List[Dict]:
         """

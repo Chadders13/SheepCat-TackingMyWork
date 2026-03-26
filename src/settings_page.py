@@ -455,6 +455,86 @@ class SettingsPage(tk.Frame):
             bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
         ).grid(row=40, column=1, columnspan=2, sticky='w', padx=5, pady=(5, 15))
 
+        # ---- Special Tasks ----
+        tk.Label(
+            form, text="Special Tasks (Fixed Durations)",
+            font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
+        ).grid(row=41, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
+
+        tk.Label(
+            form,
+            text=(
+                "Tasks whose title contains one of these names will use the\n"
+                "preset duration instead of the chain-based calculation."
+            ),
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
+            justify='left',
+        ).grid(row=42, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 8))
+
+        # Treeview to list special tasks
+        special_frame = tk.Frame(form, bg=theme.WINDOW_BG)
+        special_frame.grid(row=43, column=0, columnspan=3, sticky='w', padx=15, pady=5)
+
+        self.special_tasks_tree = ttk.Treeview(
+            special_frame,
+            columns=("name", "minutes"),
+            show="headings",
+            height=5,
+            selectmode="browse",
+        )
+        self.special_tasks_tree.heading("name", text="Task Name")
+        self.special_tasks_tree.heading("minutes", text="Duration (min)")
+        self.special_tasks_tree.column("name", width=200)
+        self.special_tasks_tree.column("minutes", width=120, anchor="center")
+        self.special_tasks_tree.pack(side="left")
+
+        special_btn_frame = tk.Frame(special_frame, bg=theme.WINDOW_BG)
+        special_btn_frame.pack(side="left", padx=(10, 0), anchor="n")
+
+        theme.RoundedButton(
+            special_btn_frame, text="Add",
+            command=self._add_special_task,
+            bg=theme.PRIMARY, fg=theme.WINDOW_BG,
+            font=theme.FONT_SMALL, width=8, cursor='hand2',
+        ).pack(pady=(0, 4))
+        theme.RoundedButton(
+            special_btn_frame, text="Remove",
+            command=self._remove_special_task,
+            bg=theme.SURFACE_BG, fg=theme.TEXT,
+            font=theme.FONT_SMALL, width=8, cursor='hand2',
+        ).pack()
+
+        # Inline add fields below the tree
+        add_row_frame = tk.Frame(form, bg=theme.WINDOW_BG)
+        add_row_frame.grid(row=44, column=0, columnspan=3, sticky='w', padx=15, pady=(4, 10))
+
+        tk.Label(
+            add_row_frame, text="Name:",
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).pack(side="left")
+        self.new_special_name_var = tk.StringVar()
+        tk.Entry(
+            add_row_frame, textvariable=self.new_special_name_var, width=18,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).pack(side="left", padx=(4, 12))
+
+        tk.Label(
+            add_row_frame, text="Minutes:",
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).pack(side="left")
+        self.new_special_mins_var = tk.StringVar()
+        tk.Entry(
+            add_row_frame, textvariable=self.new_special_mins_var, width=6,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).pack(side="left", padx=(4, 12))
+
+        theme.RoundedButton(
+            add_row_frame, text="Add Task",
+            command=self._add_special_task,
+            bg=theme.GREEN, fg=theme.WINDOW_BG,
+            font=theme.FONT_SMALL, width=10, cursor='hand2',
+        ).pack(side="left")
+
         # ---- Buttons ----
         button_frame = tk.Frame(self, bg=theme.WINDOW_BG)
         button_frame.pack(pady=15)
@@ -558,6 +638,55 @@ class SettingsPage(tk.Frame):
         directory = filedialog.askdirectory(title="Select Archive File Directory")
         if directory:
             self.archive_dir_var.set(directory)
+
+    # ------------------------------------------------------------------
+    # Special Tasks helpers
+    # ------------------------------------------------------------------
+
+    def _populate_special_tasks_tree(self, special_tasks: dict):
+        """Clear and repopulate the special-tasks Treeview from *special_tasks* dict."""
+        for row in self.special_tasks_tree.get_children():
+            self.special_tasks_tree.delete(row)
+        for name, minutes in special_tasks.items():
+            self.special_tasks_tree.insert("", "end", values=(name, minutes))
+
+    def _add_special_task(self):
+        """Add a new row to the special tasks Treeview using the inline entry fields."""
+        name = self.new_special_name_var.get().strip()
+        mins_str = self.new_special_mins_var.get().strip()
+        if not name:
+            messagebox.showwarning(
+                "Missing Name", "Please enter a task name.", parent=self
+            )
+            return
+        try:
+            mins = float(mins_str)
+            if mins <= 0:
+                raise ValueError
+        except ValueError:
+            messagebox.showwarning(
+                "Invalid Duration",
+                "Please enter a positive number of minutes.",
+                parent=self,
+            )
+            return
+
+        # Remove any existing entry with the same name (case-insensitive)
+        for row_id in self.special_tasks_tree.get_children():
+            existing_name = self.special_tasks_tree.item(row_id, "values")[0]
+            if existing_name.lower() == name.lower():
+                self.special_tasks_tree.delete(row_id)
+                break
+
+        self.special_tasks_tree.insert("", "end", values=(name, mins))
+        self.new_special_name_var.set("")
+        self.new_special_mins_var.set("")
+
+    def _remove_special_task(self):
+        """Remove the selected row from the special tasks Treeview."""
+        selected = self.special_tasks_tree.selection()
+        if selected:
+            self.special_tasks_tree.delete(selected[0])
 
     def _on_archive_toggled(self):
         """Enable or disable the archive trigger and directory widgets."""
@@ -686,6 +815,12 @@ class SettingsPage(tk.Frame):
         self.ado_org_url_var.set(sm.get("azure_devops_org_url", ""))
         self.ado_pat_var.set(sm.get("azure_devops_pat", ""))
 
+        # Special tasks
+        special_tasks = sm.get("special_tasks", {})
+        if not isinstance(special_tasks, dict):
+            special_tasks = {}
+        self._populate_special_tasks_tree(special_tasks)
+
         self._update_preview()
         self._update_summary_preview()
 
@@ -740,6 +875,16 @@ class SettingsPage(tk.Frame):
         sm.set("jira_api_token", self.jira_token_var.get().strip())
         sm.set("azure_devops_org_url", self.ado_org_url_var.get().strip())
         sm.set("azure_devops_pat", self.ado_pat_var.get().strip())
+
+        # Special tasks
+        special_tasks = {}
+        for row_id in self.special_tasks_tree.get_children():
+            name, mins = self.special_tasks_tree.item(row_id, "values")
+            try:
+                special_tasks[name] = float(mins)
+            except (ValueError, TypeError):
+                pass
+        sm.set("special_tasks", special_tasks)
 
         if sm.save():
             self.status_label.config(text="Settings saved successfully!", fg=theme.GREEN)

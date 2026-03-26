@@ -28,6 +28,12 @@ DEFAULT_SETTINGS = {
     "ui_theme": "Classic",       # "Classic" or "Glass Purple"
     "hourly_summary_extra_context": "",   # Extra instructions appended to interval summary prompts
     "daily_summary_extra_context": "",    # Extra instructions appended to end-of-day summary prompts
+    # ── Special tasks with fixed durations ────────────────────────────────────
+    # Keys are task names (case-insensitive match), values are durations in minutes.
+    "special_tasks": {
+        "lunch": 45,
+        "school run": 35,
+    },
     # ── External API integrations (opt-in, explicit consent required) ─────────
     "jira_host": "",          # e.g. https://yourcompany.atlassian.net
     "jira_email": "",         # Atlassian account email

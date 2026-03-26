@@ -585,6 +585,140 @@ class TestCSVDataRepositoryMultiFile(unittest.TestCase):
         self.assertEqual(updated_a[0]["Resolved"], "Yes")
         self.assertEqual(updated_b[0]["Resolved"], "No")
 
+    # ── Chain-based timing ────────────────────────────────────────────────────
+
+    def test_update_task_timing_updates_end_time_and_duration(self):
+        """update_task_timing() should overwrite End Time and Duration for a row."""
+        self.repo.initialize()
+        today = datetime.date.today()
+        start_str = today.strftime('%Y-%m-%d') + ' 09:00:00'
+        self.repo.log_task({
+            'start_time': start_str,
+            'end_time': start_str,
+            'duration': 0,
+            'ticket': 'T-1',
+            'title': 'First task',
+            'system_info': '',
+            'ai_summary': '',
+            'resolved': 'No',
+        })
+        tasks = self.repo.get_all_tasks()
+        task_id = tasks[0]['task_id']
+
+        new_end = today.strftime('%Y-%m-%d') + ' 10:30:00'
+        result = self.repo.update_task_timing(task_id, new_end, 90.0)
+        self.assertTrue(result)
+
+        updated = self.repo.get_all_tasks()
+        self.assertEqual(updated[0]['End Time'], new_end)
+        self.assertEqual(float(updated[0]['Duration (Min)']), 90.0)
+
+    def test_update_tasks_timing_by_start_time_updates_all_tickets(self):
+        """update_tasks_timing_by_start_time() should update every row sharing a start time."""
+        self.repo.initialize()
+        today = datetime.date.today()
+        start_str = today.strftime('%Y-%m-%d') + ' 09:00:00'
+        # Simulate a task logged against two tickets
+        for ticket in ('T-1', 'T-2'):
+            self.repo.log_task({
+                'start_time': start_str,
+                'end_time': start_str,
+                'duration': 0,
+                'ticket': ticket,
+                'title': 'Multi-ticket task',
+                'system_info': '',
+                'ai_summary': '',
+                'resolved': 'No',
+            })
+
+        new_end = today.strftime('%Y-%m-%d') + ' 10:00:00'
+        result = self.repo.update_tasks_timing_by_start_time(start_str, new_end, 60.0)
+        self.assertTrue(result)
+
+        all_tasks = self.repo.get_all_tasks()
+        self.assertEqual(len(all_tasks), 2)
+        for task in all_tasks:
+            self.assertEqual(task['End Time'], new_end)
+            self.assertEqual(float(task['Duration (Min)']), 60.0)
+
+    def test_update_tasks_timing_by_start_time_leaves_other_rows_unchanged(self):
+        """Only rows with the matching start time should be modified."""
+        self.repo.initialize()
+        today = datetime.date.today()
+        start_a = today.strftime('%Y-%m-%d') + ' 09:00:00'
+        start_b = today.strftime('%Y-%m-%d') + ' 10:00:00'
+        for start, title in ((start_a, 'Task A'), (start_b, 'Task B')):
+            self.repo.log_task({
+                'start_time': start,
+                'end_time': start,
+                'duration': 0,
+                'ticket': '',
+                'title': title,
+                'system_info': '',
+                'ai_summary': '',
+                'resolved': 'No',
+            })
+
+        new_end = today.strftime('%Y-%m-%d') + ' 10:00:00'
+        self.repo.update_tasks_timing_by_start_time(start_a, new_end, 60.0)
+
+        tasks = self.repo.get_all_tasks()
+        task_a = next(t for t in tasks if t['Title'] == 'Task A')
+        task_b = next(t for t in tasks if t['Title'] == 'Task B')
+
+        self.assertEqual(task_a['End Time'], new_end)
+        self.assertEqual(float(task_a['Duration (Min)']), 60.0)
+        # Task B should be unchanged
+        self.assertEqual(task_b['End Time'], start_b)
+        self.assertEqual(float(task_b['Duration (Min)']), 0.0)
+
+    def test_update_tasks_timing_no_match_returns_false(self):
+        """Returns False when no rows match the supplied start time."""
+        self.repo.initialize()
+        result = self.repo.update_tasks_timing_by_start_time(
+            '2024-01-01 00:00:00', '2024-01-01 01:00:00', 60.0
+        )
+        self.assertFalse(result)
+
+
+class TestSpecialTaskDuration(unittest.TestCase):
+    """Unit tests for the special-task duration helper logic (no UI needed)."""
+
+    def _get_special_task_duration(self, notes: str, special_tasks: dict):
+        """Standalone version of WorkLoggerApp._get_special_task_duration."""
+        notes_lower = notes.lower()
+        for task_name, duration_min in special_tasks.items():
+            if task_name.lower() in notes_lower:
+                return float(duration_min)
+        return None
+
+    def test_exact_match_returns_duration(self):
+        tasks = {"lunch": 45, "school run": 35}
+        self.assertEqual(self._get_special_task_duration("lunch", tasks), 45.0)
+
+    def test_case_insensitive_match(self):
+        tasks = {"lunch": 45}
+        self.assertEqual(self._get_special_task_duration("LUNCH break", tasks), 45.0)
+        self.assertEqual(self._get_special_task_duration("Lunch", tasks), 45.0)
+
+    def test_substring_match(self):
+        tasks = {"school run": 35}
+        self.assertEqual(
+            self._get_special_task_duration("doing the school run now", tasks), 35.0
+        )
+
+    def test_no_match_returns_none(self):
+        tasks = {"lunch": 45, "school run": 35}
+        self.assertIsNone(self._get_special_task_duration("working on the report", tasks))
+
+    def test_empty_special_tasks(self):
+        self.assertIsNone(self._get_special_task_duration("lunch", {}))
+
+    def test_fractional_duration(self):
+        tasks = {"dr appointment": 90.5}
+        result = self._get_special_task_duration("dr appointment", tasks)
+        self.assertAlmostEqual(result, 90.5)
+
 
 class TestTodoRepository(unittest.TestCase):
     def setUp(self):
