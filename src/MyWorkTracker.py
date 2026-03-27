@@ -16,6 +16,7 @@ from settings_page import SettingsPage
 from todo_repository import TodoRepository
 from todo_page import TodoPage
 from about_page import AboutPage
+from summary_history_page import SummaryHistoryPage
 import theme
 from onboarding import run_onboarding
 from ollama_client import check_connection, DEFAULT_OLLAMA_BASE_URL
@@ -76,6 +77,7 @@ class WorkLoggerApp:
         self._create_tracker_page()
         self._create_review_page()
         self._create_search_page()
+        self._create_summary_history_page()
         self._create_settings_page()
         self._create_todo_page()
         self._create_about_page()
@@ -96,12 +98,13 @@ class WorkLoggerApp:
         self.nav_bar = nav_bar
 
         nav_pages = [
-            ("Home",         "tracker"),
-            ("Review Log",   "review"),
-            ("Search Notes", "search"),
-            ("Todo List",    "todo"),
-            ("Settings",     "settings"),
-            ("About",        "about"),
+            ("Home",             "tracker"),
+            ("Review Log",       "review"),
+            ("Search Notes",     "search"),
+            ("Summary History",  "summary_history"),
+            ("Todo List",        "todo"),
+            ("Settings",         "settings"),
+            ("About",            "about"),
         ]
 
         self.nav_buttons = {}
@@ -501,6 +504,15 @@ class WorkLoggerApp:
                                settings_manager=self.settings_manager)
         self.pages["search"] = page
     
+    def _create_summary_history_page(self):
+        """Create the summary history page"""
+        page = SummaryHistoryPage(
+            self.container,
+            self.data_repository,
+            generate_summary_fn=self.generate_day_summary,
+        )
+        self.pages["summary_history"] = page
+    
     def _create_settings_page(self):
         """Create the settings page"""
         page = SettingsPage(self.container, self.settings_manager,
@@ -546,6 +558,9 @@ class WorkLoggerApp:
         # Update the search notes page to use the new repository
         self.pages["search"].data_repository = self.data_repository
         self.pages["search"].settings_manager = self.settings_manager
+        
+        # Update the summary history page to use the new repository
+        self.pages["summary_history"].data_repository = self.data_repository
         
         # Reinitialise the todo repository with the (possibly new) directory
         new_todo_path = self.settings_manager.get_todo_file_path()
