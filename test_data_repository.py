@@ -154,6 +154,36 @@ class TestCSVDataRepository(unittest.TestCase):
         tasks = self.repo.get_all_tasks()
         self.assertEqual(tasks[0]['Resolved'], 'Yes')
     
+    def test_update_task_fields(self):
+        """Test updating the ticket number and title of a task"""
+        self.repo.initialize()
+
+        task_data = {
+            'start_time': '2024-01-15 10:00:00',
+            'end_time': '2024-01-15 10:30:00',
+            'duration': 30.0,
+            'ticket': 'OLD-001',
+            'title': 'Old Title',
+            'system_info': 'Test System',
+            'ai_summary': 'Task summary',
+            'resolved': 'No',
+        }
+        self.repo.log_task(task_data)
+
+        tasks = self.repo.get_all_tasks()
+        self.assertEqual(len(tasks), 1)
+        task_id = tasks[0]['task_id']
+
+        result = self.repo.update_task_fields(task_id, 'NEW-999', 'New Title')
+        self.assertTrue(result)
+
+        tasks = self.repo.get_all_tasks()
+        self.assertEqual(tasks[0]['Ticket'], 'NEW-999')
+        self.assertEqual(tasks[0]['Title'], 'New Title')
+        # Other fields should be unchanged
+        self.assertEqual(tasks[0]['Resolved'], 'No')
+
+    
     def test_get_tasks_since(self):
         """Test retrieving tasks since a specific datetime"""
         self.repo.initialize()
