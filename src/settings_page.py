@@ -455,11 +455,56 @@ class SettingsPage(tk.Frame):
             bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
         ).grid(row=40, column=1, columnspan=2, sticky='w', padx=5, pady=(5, 15))
 
+        # ---- Git MCP Context Settings ----
+        tk.Label(
+            form, text="Git MCP Context",
+            font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
+        ).grid(row=41, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 2))
+
+        tk.Label(
+            form,
+            text=(
+                "When enabled, the check-in timer fetches uncommitted Git changes\n"
+                "via the official @modelcontextprotocol/server-git server and passes\n"
+                "them to Ollama to generate a personalised nudge. Requires npx."
+            ),
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.ACCENT,
+            justify='left',
+        ).grid(row=42, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 8))
+
+        self.mcp_enabled_var = tk.BooleanVar()
+        tk.Checkbutton(
+            form, text="Enable Git MCP context-aware nudges",
+            variable=self.mcp_enabled_var,
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.TEXT,
+            selectcolor=theme.INPUT_BG, activebackground=theme.WINDOW_BG,
+            command=self._on_mcp_toggled,
+        ).grid(row=43, column=0, columnspan=3, sticky='w', padx=15, pady=5)
+
+        tk.Label(
+            form, text="Repository Path:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=44, column=0, sticky='w', padx=15, pady=5)
+        self.mcp_repo_path_var = tk.StringVar()
+        mcp_repo_frame = tk.Frame(form, bg=theme.WINDOW_BG)
+        mcp_repo_frame.grid(row=44, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        self.mcp_repo_path_entry = tk.Entry(
+            mcp_repo_frame, textvariable=self.mcp_repo_path_var, width=40,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        )
+        self.mcp_repo_path_entry.pack(side='left')
+        self.mcp_repo_browse_btn = theme.RoundedButton(
+            mcp_repo_frame, text="Browse...", command=self._browse_mcp_repo,
+            bg=theme.SURFACE_BG, fg=theme.TEXT, cursor='hand2',
+        )
+        self.mcp_repo_browse_btn.pack(side='left', padx=5)
+        self._on_mcp_toggled()
+
         # ---- Special Tasks ----
         tk.Label(
             form, text="Special Tasks (Fixed Durations)",
             font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
-        ).grid(row=41, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
+        ).grid(row=45, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
 
         tk.Label(
             form,
@@ -469,11 +514,11 @@ class SettingsPage(tk.Frame):
             ),
             font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
             justify='left',
-        ).grid(row=42, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 8))
+        ).grid(row=46, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 8))
 
         # Treeview to list special tasks
         special_frame = tk.Frame(form, bg=theme.WINDOW_BG)
-        special_frame.grid(row=43, column=0, columnspan=3, sticky='w', padx=15, pady=5)
+        special_frame.grid(row=47, column=0, columnspan=3, sticky='w', padx=15, pady=5)
 
         self.special_tasks_tree = ttk.Treeview(
             special_frame,
@@ -506,7 +551,7 @@ class SettingsPage(tk.Frame):
 
         # Inline add fields below the tree
         add_row_frame = tk.Frame(form, bg=theme.WINDOW_BG)
-        add_row_frame.grid(row=44, column=0, columnspan=3, sticky='w', padx=15, pady=(4, 10))
+        add_row_frame.grid(row=48, column=0, columnspan=3, sticky='w', padx=15, pady=(4, 10))
 
         tk.Label(
             add_row_frame, text="Name:",
@@ -639,6 +684,12 @@ class SettingsPage(tk.Frame):
         if directory:
             self.archive_dir_var.set(directory)
 
+    def _browse_mcp_repo(self):
+        """Open a directory chooser and populate the MCP repository path field."""
+        directory = filedialog.askdirectory(title="Select Git Repository for MCP Context")
+        if directory:
+            self.mcp_repo_path_var.set(directory)
+
     # ------------------------------------------------------------------
     # Special Tasks helpers
     # ------------------------------------------------------------------
@@ -696,6 +747,13 @@ class SettingsPage(tk.Frame):
         self.archive_dir_entry.config(state=state_entry)
         self.archive_dir_browse_btn.config(state=state_entry)
         self.archive_trigger_combo.config(state=state_combo)
+
+    def _on_mcp_toggled(self):
+        """Enable or disable the MCP repository path widgets based on the checkbox."""
+        enabled = self.mcp_enabled_var.get()
+        state = tk.NORMAL if enabled else tk.DISABLED
+        self.mcp_repo_path_entry.config(state=state)
+        self.mcp_repo_browse_btn.config(state=state)
 
     def _on_summary_save_toggled(self):
         """Enable or disable the summary directory widgets based on the checkbox."""
@@ -815,6 +873,11 @@ class SettingsPage(tk.Frame):
         self.ado_org_url_var.set(sm.get("azure_devops_org_url", ""))
         self.ado_pat_var.set(sm.get("azure_devops_pat", ""))
 
+        # Git MCP context settings
+        self.mcp_enabled_var.set(bool(sm.get("mcp_enabled", False)))
+        self.mcp_repo_path_var.set(sm.get("mcp_repo_path", "."))
+        self._on_mcp_toggled()
+
         # Special tasks
         special_tasks = sm.get("special_tasks", {})
         if not isinstance(special_tasks, dict):
@@ -875,6 +938,10 @@ class SettingsPage(tk.Frame):
         sm.set("jira_api_token", self.jira_token_var.get().strip())
         sm.set("azure_devops_org_url", self.ado_org_url_var.get().strip())
         sm.set("azure_devops_pat", self.ado_pat_var.get().strip())
+
+        # Git MCP context settings
+        sm.set("mcp_enabled", self.mcp_enabled_var.get())
+        sm.set("mcp_repo_path", self.mcp_repo_path_var.get().strip() or ".")
 
         # Special tasks
         special_tasks = {}

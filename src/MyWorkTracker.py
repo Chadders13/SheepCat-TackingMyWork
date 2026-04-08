@@ -26,6 +26,9 @@ _NO_TICKET_LABEL = "(no ticket)"
 # Delay (ms) before focusing the inline notes field after a layout change.
 # A small pause lets the geometry manager finish rendering before focus is set.
 _FOCUS_DELAY_MS = 100
+# Minimum timeout (seconds) when converting the ms LLM timeout setting for the
+# MCP background thread's Ollama call, ensuring it never becomes unreasonably short.
+_MCP_MIN_TIMEOUT_SEC = 10
 
 
 class WorkLoggerApp:
@@ -1293,8 +1296,36 @@ class WorkLoggerApp:
 
             self.root.deiconify()
 
-            # Combined check-in dialog with optional Todo list checkbox
-            show_todo = self._show_checkin_dialog(len(self.hourly_tasks))
+            # If Git MCP context is enabled, seed a StringVar with a loading
+            # message and spawn a background thread to fetch the nudge.  The
+            # thread will update the var (and therefore the dialog label) via
+            # root.after() once it has a result — safe from any thread.
+            context_var = None
+            if self.settings_manager.get("mcp_enabled", False):
+                context_var = tk.StringVar(value="🔄 Fetching git context…")
+                repo_path = self.settings_manager.get("mcp_repo_path", ".")
+                api_url = self.settings_manager.get("ai_api_url")
+                model = self.settings_manager.get("ai_model")
+                # Convert millisecond timeout setting to seconds for requests.
+                timeout_sec = max(
+                    _MCP_MIN_TIMEOUT_SEC,
+                    self.settings_manager.get("llm_request_timeout", 30000) // 1000,
+                )
+
+                def _fetch_mcp_nudge(_cv=context_var):
+                    from git_mcp_client import GitMCPClient
+                    client = GitMCPClient()
+                    nudge = client.fetch_nudge(repo_path, api_url, model, timeout_sec)
+                    # root.after(0, …) schedules the update on the tkinter main
+                    # thread — the only safe way to modify tkinter variables
+                    # from a background thread.
+                    self.root.after(0, lambda n=nudge, v=_cv: v.set(n))
+
+                threading.Thread(target=_fetch_mcp_nudge, daemon=True).start()
+
+            # Combined check-in dialog with optional Todo list checkbox.
+            # Pass context_var so the dialog can display the live MCP nudge.
+            show_todo = self._show_checkin_dialog(len(self.hourly_tasks), context_var=context_var)
 
             # Follow up on any tasks the user committed to at the last check-in
             self._follow_up_committed_tasks()
@@ -1326,17 +1357,24 @@ class WorkLoggerApp:
         interval_ms = self.settings_manager.get("checkin_interval_minutes") * 60 * 1000
         self.timer_id = self.root.after(interval_ms, self.hourly_checkin)
 
-    def _show_checkin_dialog(self, task_count: int) -> bool:
+    def _show_checkin_dialog(self, task_count: int, context_var=None) -> bool:
         """Show the combined hourly check-in dialog.
 
         Displays a notification that the hour is complete and includes a
         checkbox asking whether the user would like to open their Todo list.
 
+        When *context_var* is provided (a ``tk.StringVar``), a label bound to
+        that variable is added beneath the task-count line.  The caller can
+        update the variable from a background thread via ``root.after()`` to
+        display a live Git MCP nudge without freezing the UI.
+
         Returns ``True`` if the user checked the Todo list option.
         """
         dialog = tk.Toplevel(self.root)
         dialog.title("Hourly Check-in 🐾")
-        dialog.geometry("420x200")
+        # Expand dialog height slightly when showing the MCP context label.
+        dialog_height = 240 if context_var is not None else 200
+        dialog.geometry(f"420x{dialog_height}")
         dialog.transient(self.root)
         dialog.grab_set()
         dialog.configure(bg=theme.WINDOW_BG)
@@ -1358,7 +1396,21 @@ class WorkLoggerApp:
             fg=theme.MUTED,
             wraplength=380,
             justify='left',
-        ).pack(anchor='w', padx=20, pady=(0, 12))
+        ).pack(anchor='w', padx=20, pady=(0, 6))
+
+        # When MCP is enabled the caller passes a StringVar that starts as
+        # "🔄 Fetching git context…" and is updated once the background thread
+        # resolves a nudge from the Git MCP server and Ollama.
+        if context_var is not None:
+            tk.Label(
+                dialog,
+                textvariable=context_var,
+                font=theme.FONT_SMALL,
+                bg=theme.WINDOW_BG,
+                fg=theme.ACCENT,
+                wraplength=380,
+                justify='left',
+            ).pack(anchor='w', padx=20, pady=(0, 6))
 
         show_todo_var = tk.BooleanVar(value=False)
         tk.Checkbutton(
