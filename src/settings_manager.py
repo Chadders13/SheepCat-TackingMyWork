@@ -40,6 +40,13 @@ DEFAULT_SETTINGS = {
     "jira_api_token": "",     # Jira API token (never committed to source)
     "azure_devops_org_url": "",   # e.g. https://dev.azure.com/myorg/myproject
     "azure_devops_pat": "",       # Personal Access Token
+    # ── Knowledge Graph settings ──────────────────────────────────────────────
+    # Model used when analysing / summarising imported documents.
+    # Leave empty to fall back to the main ai_model setting.
+    "doc_eval_model": "",
+    # Directory for the SQLite graph database file (sheepcat_graph.db).
+    # Defaults to the log file directory.
+    "graph_db_directory": "",
 }
 
 # Default API URLs for each supported provider
@@ -129,6 +136,17 @@ class SettingsManager:
         """Build the full todo archive (achievements) file path."""
         directory = self.settings.get("archive_file_directory", ".")
         return os.path.join(directory, "todo_archive.md")
+
+    def get_graph_db_path(self):
+        """Build the full path to the SQLite graph database file.
+
+        Uses ``graph_db_directory`` when set, otherwise falls back to the
+        configured log file directory.
+        """
+        directory = self.settings.get("graph_db_directory", "").strip()
+        if not directory:
+            directory = self.settings.get("log_file_directory", ".")
+        return os.path.join(directory, "sheepcat_graph.db")
 
     def get_todo_file_path(self):
         """Build the full todo list file path (fixed filename in the log directory)."""

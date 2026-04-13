@@ -535,6 +535,76 @@ class SettingsPage(tk.Frame):
             font=theme.FONT_SMALL, width=10, cursor='hand2',
         ).pack(side="left")
 
+        # ---- Knowledge Graph Settings ----
+        tk.Label(
+            form, text="Knowledge Graph Settings",
+            font=theme.FONT_H3, bg=theme.WINDOW_BG, fg=theme.PRIMARY,
+        ).grid(row=45, column=0, columnspan=3, sticky='w', padx=15, pady=(15, 5))
+
+        tk.Label(
+            form,
+            text=(
+                "The Knowledge Graph stores task tags, timing notes, and linked documents\n"
+                "in a local SQLite database alongside your work logs."
+            ),
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
+            justify='left',
+        ).grid(row=46, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 8))
+
+        tk.Label(
+            form, text="Document Evaluation Model:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=47, column=0, sticky='w', padx=15, pady=5)
+        self.doc_model_var = tk.StringVar()
+        doc_model_row = tk.Frame(form, bg=theme.WINDOW_BG)
+        doc_model_row.grid(row=47, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        self.doc_model_combo = ttk.Combobox(
+            doc_model_row, textvariable=self.doc_model_var, width=27, state='normal')
+        self.doc_model_combo.pack(side='left')
+        theme.RoundedButton(
+            doc_model_row, text="⟳ Refresh", command=self._refresh_doc_models,
+            bg=theme.SURFACE_BG, fg=theme.TEXT, cursor='hand2',
+        ).pack(side='left', padx=5)
+
+        self.doc_model_status_var = tk.StringVar(value="")
+        tk.Label(
+            form, textvariable=self.doc_model_status_var,
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED, anchor='w',
+        ).grid(row=48, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 2))
+
+        tk.Label(
+            form,
+            text=(
+                "Leave blank to use the main AI model for document evaluation.\n"
+                "Set a different model here if you want a separate model for analysing documents."
+            ),
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
+            justify='left',
+        ).grid(row=49, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 8))
+
+        tk.Label(
+            form, text="Graph DB Directory:",
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.MUTED,
+        ).grid(row=50, column=0, sticky='w', padx=15, pady=5)
+        self.graph_db_dir_var = tk.StringVar()
+        graph_db_frame = tk.Frame(form, bg=theme.WINDOW_BG)
+        graph_db_frame.grid(row=50, column=1, columnspan=2, sticky='w', padx=5, pady=5)
+        tk.Entry(
+            graph_db_frame, textvariable=self.graph_db_dir_var, width=40,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).pack(side='left')
+        theme.RoundedButton(
+            graph_db_frame, text="Browse...", command=self._browse_graph_db_directory,
+            bg=theme.SURFACE_BG, fg=theme.TEXT, cursor='hand2',
+        ).pack(side='left', padx=5)
+
+        tk.Label(
+            form,
+            text="Leave blank to store the graph database in the Log File Directory.",
+            font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
+            justify='left',
+        ).grid(row=51, column=0, columnspan=3, sticky='w', padx=15, pady=(0, 15))
+
         # ---- Buttons ----
         button_frame = tk.Frame(self, bg=theme.WINDOW_BG)
         button_frame.pack(pady=15)
@@ -638,6 +708,37 @@ class SettingsPage(tk.Frame):
         directory = filedialog.askdirectory(title="Select Archive File Directory")
         if directory:
             self.archive_dir_var.set(directory)
+
+    def _browse_graph_db_directory(self):
+        """Open a directory chooser and populate the graph DB directory field."""
+        directory = filedialog.askdirectory(title="Select Graph Database Directory")
+        if directory:
+            self.graph_db_dir_var.set(directory)
+
+    def _refresh_doc_models(self):
+        """Fetch available models from Ollama and populate the doc-eval model combobox."""
+        self.doc_model_status_var.set("🔄 Fetching models…")
+        self.doc_model_combo['values'] = []
+
+        def _fetch():
+            base_url = self._get_base_url()
+            result = check_connection(base_url)
+            self.after(0, self._apply_doc_models, result.success, result.models)
+
+        threading.Thread(target=_fetch, daemon=True).start()
+
+    def _apply_doc_models(self, success: bool, models: list):
+        """Update the doc-eval model combobox (called on main thread)."""
+        if not success:
+            self.doc_model_status_var.set("⚠ Could not reach Ollama – check API URL")
+            return
+        # Offer blank option (= use main model) plus all available models
+        options = [""] + models
+        self.doc_model_combo['values'] = options
+        current = self.doc_model_var.get().strip()
+        if current not in options:
+            self.doc_model_var.set("")
+        self.doc_model_status_var.set(f"✅ {len(models)} model(s) available")
 
     # ------------------------------------------------------------------
     # Special Tasks helpers
@@ -821,6 +922,10 @@ class SettingsPage(tk.Frame):
             special_tasks = {}
         self._populate_special_tasks_tree(special_tasks)
 
+        # Knowledge Graph settings
+        self.doc_model_var.set(sm.get("doc_eval_model", ""))
+        self.graph_db_dir_var.set(sm.get("graph_db_directory", ""))
+
         self._update_preview()
         self._update_summary_preview()
 
@@ -885,6 +990,10 @@ class SettingsPage(tk.Frame):
             except (ValueError, TypeError):
                 pass
         sm.set("special_tasks", special_tasks)
+
+        # Knowledge Graph settings
+        sm.set("doc_eval_model", self.doc_model_var.get().strip())
+        sm.set("graph_db_directory", self.graph_db_dir_var.get().strip())
 
         if sm.save():
             self.status_label.config(text="Settings saved successfully!", fg=theme.GREEN)

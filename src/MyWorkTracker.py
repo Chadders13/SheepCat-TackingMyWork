@@ -17,6 +17,8 @@ from todo_repository import TodoRepository
 from todo_page import TodoPage
 from about_page import AboutPage
 from summary_history_page import SummaryHistoryPage
+from graph_repository import GraphRepository
+from knowledge_graph_page import KnowledgeGraphPage
 import theme
 from onboarding import run_onboarding
 from ollama_client import check_connection, DEFAULT_OLLAMA_BASE_URL
@@ -51,6 +53,10 @@ class WorkLoggerApp:
         # Initialize todo repository
         self.todo_repository = TodoRepository(self.settings_manager.get_todo_file_path())
         self.todo_repository.initialize()
+
+        # Initialize graph repository (SQLite-backed knowledge graph)
+        self.graph_repository = GraphRepository(self.settings_manager.get_graph_db_path())
+        self.graph_repository.initialize()
         
         # State variables
         self.is_running = False
@@ -81,6 +87,7 @@ class WorkLoggerApp:
         self._create_settings_page()
         self._create_todo_page()
         self._create_about_page()
+        self._create_knowledge_graph_page()
         
         # Show tracker page by default
         self.show_page("tracker")
@@ -102,6 +109,7 @@ class WorkLoggerApp:
             ("Review Log",       "review"),
             ("Search Notes",     "search"),
             ("Summary History",  "summary_history"),
+            ("Knowledge Graph",  "knowledge_graph"),
             ("Todo List",        "todo"),
             ("Settings",         "settings"),
             ("About",            "about"),
@@ -529,6 +537,16 @@ class WorkLoggerApp:
         """Create the About Us & Sponsors page"""
         page = AboutPage(self.container)
         self.pages["about"] = page
+
+    def _create_knowledge_graph_page(self):
+        """Create the Knowledge Graph page for task tags, notes, and documents."""
+        page = KnowledgeGraphPage(
+            self.container,
+            self.graph_repository,
+            self.data_repository,
+            self.settings_manager,
+        )
+        self.pages["knowledge_graph"] = page
     
     def _archive_done_todos(self):
         """Archive done todo items if the setting is enabled."""
@@ -569,6 +587,16 @@ class WorkLoggerApp:
         
         # Update the todo page to use the new repository
         self.pages["todo"].todo_repository = self.todo_repository
+
+        # Reinitialise the graph repository if the DB path has changed
+        new_graph_path = self.settings_manager.get_graph_db_path()
+        if new_graph_path != self.graph_repository.db_path:
+            self.graph_repository.close()
+            self.graph_repository = GraphRepository(new_graph_path)
+            self.graph_repository.initialize()
+            self.pages["knowledge_graph"].graph_repo = self.graph_repository
+            self.pages["knowledge_graph"].data_repo = self.data_repository
+        self.pages["knowledge_graph"].settings_manager = self.settings_manager
     
     def show_page(self, page_name):
         """
