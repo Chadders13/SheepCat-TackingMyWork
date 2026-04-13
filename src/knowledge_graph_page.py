@@ -534,7 +534,7 @@ class KnowledgeGraphPage(tk.Frame):
             return
 
         name = os.path.basename(file_path)
-        content: str | None = None
+        content = None
 
         # Extract text content for plain-text formats (cap at 100 KB)
         if file_path.lower().endswith(('.txt', '.md', '.csv', '.log')):
