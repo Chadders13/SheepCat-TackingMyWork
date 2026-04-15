@@ -7,6 +7,8 @@ import json
 import os
 import datetime
 
+from graph_repository import GRAPH_DB_FILENAME
+
 
 DEFAULT_SETTINGS = {
     "ai_provider": "Ollama",
@@ -146,7 +148,7 @@ class SettingsManager:
         directory = self.settings.get("graph_db_directory", "").strip()
         if not directory:
             directory = self.settings.get("log_file_directory", ".")
-        return os.path.join(directory, "sheepcat_graph.db")
+        return os.path.join(directory, GRAPH_DB_FILENAME)
 
     def get_todo_file_path(self):
         """Build the full todo list file path (fixed filename in the log directory)."""

@@ -545,6 +545,7 @@ class WorkLoggerApp:
             self.graph_repository,
             self.data_repository,
             self.settings_manager,
+            on_settings_saved=self._on_settings_changed,
         )
         self.pages["knowledge_graph"] = page
     

@@ -13,28 +13,33 @@ import os
 import requests
 
 import theme
-from graph_repository import GraphRepository
+from graph_repository import GraphRepository, GRAPH_DB_FILENAME
 from ollama_client import strip_thinking_tokens
 
 
 class KnowledgeGraphPage(tk.Frame):
     """Page for managing task tags, timing notes, documents, and their relationships."""
 
-    def __init__(self, parent, graph_repository: GraphRepository, data_repository, settings_manager=None):
+    def __init__(self, parent, graph_repository: GraphRepository, data_repository,
+                 settings_manager=None, on_settings_saved=None):
         """
         Initialise the Knowledge Graph page.
 
         Args:
-            parent:           Parent tkinter widget.
-            graph_repository: :class:`GraphRepository` instance.
-            data_repository:  Data repository (CSVDataRepository) for reading tasks.
-            settings_manager: :class:`SettingsManager` instance used by the
-                              auto-tag feature to reach the configured AI model.
+            parent:            Parent tkinter widget.
+            graph_repository:  :class:`GraphRepository` instance.
+            data_repository:   Data repository (CSVDataRepository) for reading tasks.
+            settings_manager:  :class:`SettingsManager` instance used by the
+                               auto-tag feature and the DB-path bar.
+            on_settings_saved: Optional callback invoked after the DB directory
+                               is changed from within this page, so the parent
+                               application can resync its own references.
         """
         super().__init__(parent, bg=theme.WINDOW_BG)
         self.graph_repo = graph_repository
         self.data_repo = data_repository
         self.settings_manager = settings_manager
+        self._on_settings_saved = on_settings_saved
         self._all_tasks_data: list = []
         # Maps unique Treeview iid -> graph task_id (Start Time string).
         # Required because Start Time strings contain spaces that are
@@ -59,7 +64,41 @@ class KnowledgeGraphPage(tk.Frame):
                 "import documents and link them to tasks."
             ),
             font=theme.FONT_SMALL, bg=theme.WINDOW_BG, fg=theme.MUTED,
-        ).pack(anchor='w', padx=10, pady=(0, 8))
+        ).pack(anchor='w', padx=10, pady=(0, 4))
+
+        # ── Graph DB path bar ─────────────────────────────────────────────────
+        db_bar = tk.Frame(self, bg=theme.SURFACE_BG, bd=0)
+        db_bar.pack(fill='x', padx=10, pady=(0, 6))
+
+        tk.Label(
+            db_bar, text="Graph DB:",
+            font=theme.FONT_SMALL, bg=theme.SURFACE_BG, fg=theme.MUTED,
+        ).pack(side='left', padx=(8, 4), pady=4)
+
+        self._db_path_var = tk.StringVar()
+        db_path_entry = tk.Entry(
+            db_bar, textvariable=self._db_path_var,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+            relief='flat', font=theme.FONT_SMALL, width=48,
+            state='readonly',
+        )
+        db_path_entry.pack(side='left', padx=(0, 6), pady=4)
+
+        theme.RoundedButton(
+            db_bar, text="Browse…",
+            command=self._browse_db_directory,
+            bg=theme.SURFACE_BG, fg=theme.TEXT,
+            font=theme.FONT_SMALL, width=10, cursor='hand2',
+        ).pack(side='left', padx=(0, 4), pady=4)
+
+        theme.RoundedButton(
+            db_bar, text="Apply",
+            command=self._apply_db_path,
+            bg=theme.PRIMARY, fg=theme.TEXT,
+            font=theme.FONT_SMALL, width=8, cursor='hand2',
+        ).pack(side='left', pady=4)
+
+        self._db_path_var.set(self._current_db_path())
 
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill='both', expand=True, padx=8, pady=4)
@@ -68,6 +107,93 @@ class KnowledgeGraphPage(tk.Frame):
         self._create_documents_tab()
 
     # ── Tags tab ──────────────────────────────────────────────────────────────
+
+    # ── Graph DB path helpers ──────────────────────────────────────────────────
+
+    def _current_db_path(self) -> str:
+        """Return the effective graph DB file path from settings."""
+        if self.settings_manager is not None:
+            return self.settings_manager.get_graph_db_path()
+        return self.graph_repo.db_path if self.graph_repo else ""
+
+    def _browse_db_directory(self):
+        """Open a folder-chooser so the user can pick a new graph DB directory."""
+        initial = os.path.dirname(self._db_path_var.get()) or "."
+        directory = filedialog.askdirectory(
+            title="Select Graph DB Directory",
+            initialdir=initial,
+            parent=self,
+        )
+        if directory:
+            preview = os.path.join(directory, GRAPH_DB_FILENAME)
+            self._db_path_var.set(preview)
+            # Store the chosen directory for Apply
+            self._pending_db_directory = directory
+
+    def _apply_db_path(self):
+        """Apply the selected graph DB directory and reinitialise the repository.
+
+        Settings are saved first, then:
+        * When a parent callback is available (``_on_settings_saved``), it is
+          invoked to handle the actual ``GraphRepository`` reinitialisation —
+          this avoids creating two repository instances.
+        * Without a callback the page reinitialises the repository itself.
+        """
+        pending = getattr(self, '_pending_db_directory', None)
+        if not pending:
+            # Nothing was browsed — no change
+            messagebox.showinfo(
+                "No Change",
+                "Use Browse… to choose a directory first.",
+                parent=self,
+            )
+            return
+
+        if self.settings_manager is None:
+            messagebox.showerror(
+                "Not Available",
+                "Settings manager is not connected. Please restart the app.",
+                parent=self,
+            )
+            return
+
+        new_path = os.path.join(pending, GRAPH_DB_FILENAME)
+        old_path = self.graph_repo.db_path if self.graph_repo else ""
+
+        if new_path == old_path:
+            self._pending_db_directory = None
+            messagebox.showinfo(
+                "No Change",
+                "The selected directory is the same as the current one.",
+                parent=self,
+            )
+            return
+
+        # Persist the new directory
+        self.settings_manager.set("graph_db_directory", pending)
+        self.settings_manager.save()
+        self._pending_db_directory = None
+
+        if self._on_settings_saved:
+            # Parent handles close/create/reassign of graph_repository and
+            # updates self.graph_repo via _on_settings_changed.
+            self._on_settings_saved()
+        else:
+            # Standalone mode — handle reinit locally
+            if self.graph_repo:
+                self.graph_repo.close()
+            self.graph_repo = GraphRepository(new_path)
+            self.graph_repo.initialize()
+
+        # Refresh the DB path bar and reload data unconditionally
+        self._db_path_var.set(self._current_db_path())
+        self._load_data()
+
+        messagebox.showinfo(
+            "Graph DB Updated",
+            f"Graph database location updated to:\n{new_path}",
+            parent=self,
+        )
 
     def _create_tags_tab(self):
         """Create the Task Tags tab."""

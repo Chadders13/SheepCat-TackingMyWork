@@ -10,6 +10,11 @@ import os
 import datetime
 from typing import List, Dict, Optional
 
+# Filename used for the SQLite graph database file.  Defined here as a single
+# source of truth so settings_manager and the UI can import it instead of
+# hardcoding the string in multiple places.
+GRAPH_DB_FILENAME = "sheepcat_graph.db"
+
 
 class GraphRepository:
     """SQLite-based graph repository for task categorisation and document management.
@@ -75,9 +80,15 @@ class GraphRepository:
             """)
 
     def _get_conn(self) -> sqlite3.Connection:
-        """Return a cached SQLite connection, creating it on first call."""
+        """Return a cached SQLite connection, creating it on first call.
+
+        ``check_same_thread=False`` is required because the auto-tag worker
+        runs database writes from a background thread while the connection may
+        have been created on the main (UI) thread.  SQLite itself handles the
+        concurrent access safely for the single-writer pattern used here.
+        """
         if self._conn is None:
-            self._conn = sqlite3.connect(self.db_path)
+            self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
             self._conn.row_factory = sqlite3.Row
         return self._conn
 
