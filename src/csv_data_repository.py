@@ -438,6 +438,45 @@ class CSVDataRepository(DataRepository):
 
         return results
 
+    def update_task_fields(self, task_id: str, ticket: str, title: str) -> bool:
+        """
+        Update the ticket number and title of a task in the correct CSV file.
+
+        Args:
+            task_id: Encoded as ``"{file_path}||{row_index}"``
+            ticket: New ticket number/ID
+            title: New task title/message
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            file_path, row_idx = self._decode_task_id(task_id)
+            if file_path is None:
+                file_path = self._get_today_file_path()
+
+            rows = []
+            with open(file_path, mode='r', encoding='utf-8') as file:
+                reader = csv.reader(file)
+                rows = list(reader)
+
+            if 0 < row_idx < len(rows):
+                rows[row_idx][3] = ticket  # Ticket column
+                rows[row_idx][4] = title   # Title column
+
+                with open(file_path, mode='w', newline='', encoding='utf-8') as file:
+                    writer = csv.writer(file)
+                    writer.writerows(rows)
+
+                return True
+            else:
+                print(f"Invalid task_id: {task_id}")
+                return False
+
+        except Exception as e:
+            print(f"Error updating task fields: {e}")
+            return False
+
     def get_all_tasks(self) -> List[Dict]:
         """
         Get all tasks from all CSV log files in the configured directory.

@@ -98,7 +98,7 @@ class ReviewLogPage(tk.Frame):
         self.task_tree.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
         
-        # Bind double-click to edit
+        # Bind double-click to edit ticket/title
         self.task_tree.bind('<Double-1>', self._on_task_double_click)
         
         # Action buttons
@@ -114,6 +114,11 @@ class ReviewLogPage(tk.Frame):
             button_frame, text="Mark as Unresolved", command=self._mark_unresolved,
             bg=theme.ACCENT, fg=theme.WINDOW_BG,
             font=theme.FONT_BODY, width=15, cursor='hand2',
+        ).pack(side='left', padx=5)
+        theme.RoundedButton(
+            button_frame, text="Edit Task", command=self._edit_selected_task,
+            bg=theme.SURFACE_BG, fg=theme.TEXT,
+            font=theme.FONT_BODY, width=12, cursor='hand2',
         ).pack(side='left', padx=5)
         
         # Status label
@@ -179,27 +184,102 @@ class ReviewLogPage(tk.Frame):
         self.status_label.config(text=f"Loaded {len(display_tasks)} tasks for {date_str}")
     
     def _on_task_double_click(self, event):
-        """Handle double-click on a task to toggle resolved status"""
+        """Handle double-click on a task to open the inline edit dialog"""
         selection = self.task_tree.selection()
         if not selection:
             return
+        self._open_edit_dialog(selection[0])
+    
+    def _edit_selected_task(self):
+        """Open the edit dialog for the currently selected task"""
+        selection = self.task_tree.selection()
+        if not selection:
+            messagebox.showinfo("No Selection", "Please select a task to edit")
+            return
+        self._open_edit_dialog(selection[0])
+    
+    def _open_edit_dialog(self, task_id: str):
+        """
+        Open a dialog to edit the ticket number and title of a task.
         
-        task_id = selection[0]
+        Args:
+            task_id: The task identifier (Treeview iid)
+        """
         item = self.task_tree.item(task_id)
-        current_resolved = item['values'][4]  # Resolved is 5th column
+        values = item['values']
+        current_title = values[1]
+        current_ticket = values[2]
         
-        # Toggle resolved status
-        new_resolved = "No" if current_resolved == "Yes" else "Yes"
+        dialog = tk.Toplevel(self)
+        dialog.title("Edit Task")
+        dialog.configure(bg=theme.WINDOW_BG)
+        dialog.resizable(False, False)
+        dialog.grab_set()
         
-        # Update in repository
-        if self.data_repository.update_task_resolved_status(task_id, new_resolved):
-            # Update in tree
-            values = list(item['values'])
-            values[4] = new_resolved
-            self.task_tree.item(task_id, values=values)
-            self.status_label.config(text=f"Updated task to Resolved={new_resolved}")
-        else:
-            messagebox.showerror("Error", "Failed to update task status")
+        # Centre the dialog relative to the parent window
+        self.update_idletasks()
+        x = self.winfo_rootx() + (self.winfo_width() - 400) // 2
+        y = self.winfo_rooty() + (self.winfo_height() - 180) // 2
+        dialog.geometry(f"400x180+{x}+{y}")
+        
+        pad = {'padx': 10, 'pady': 6}
+        
+        # Ticket field
+        ticket_frame = tk.Frame(dialog, bg=theme.WINDOW_BG)
+        ticket_frame.pack(fill='x', **pad)
+        tk.Label(
+            ticket_frame, text="Ticket:", width=10, anchor='w',
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.TEXT,
+        ).pack(side='left')
+        ticket_var = tk.StringVar(value=current_ticket)
+        tk.Entry(
+            ticket_frame, textvariable=ticket_var,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).pack(side='left', fill='x', expand=True)
+        
+        # Title / message field
+        title_frame = tk.Frame(dialog, bg=theme.WINDOW_BG)
+        title_frame.pack(fill='x', **pad)
+        tk.Label(
+            title_frame, text="Message:", width=10, anchor='w',
+            font=theme.FONT_BODY, bg=theme.WINDOW_BG, fg=theme.TEXT,
+        ).pack(side='left')
+        title_var = tk.StringVar(value=current_title)
+        tk.Entry(
+            title_frame, textvariable=title_var,
+            bg=theme.INPUT_BG, fg=theme.TEXT, insertbackground=theme.TEXT,
+        ).pack(side='left', fill='x', expand=True)
+        
+        def _save():
+            new_ticket = ticket_var.get().strip()
+            new_title = title_var.get().strip()
+            if not new_title:
+                messagebox.showwarning("Validation", "Message cannot be empty", parent=dialog)
+                return
+            if self.data_repository.update_task_fields(task_id, new_ticket, new_title):
+                updated_values = list(values)
+                updated_values[1] = new_title
+                updated_values[2] = new_ticket
+                self.task_tree.item(task_id, values=updated_values)
+                self.status_label.config(text="Task updated successfully")
+                dialog.destroy()
+            else:
+                messagebox.showerror("Error", "Failed to update task", parent=dialog)
+        
+        # Buttons
+        btn_frame = tk.Frame(dialog, bg=theme.WINDOW_BG)
+        btn_frame.pack(fill='x', **pad)
+        theme.RoundedButton(
+            btn_frame, text="Save", command=_save,
+            bg=theme.PRIMARY, fg=theme.TEXT, width=8, cursor='hand2',
+        ).pack(side='left', padx=5)
+        theme.RoundedButton(
+            btn_frame, text="Cancel", command=dialog.destroy,
+            bg=theme.SURFACE_BG, fg=theme.TEXT, width=8, cursor='hand2',
+        ).pack(side='left', padx=5)
+        
+        dialog.bind('<Return>', lambda e: _save())
+        dialog.bind('<Escape>', lambda e: dialog.destroy())
     
     def _mark_resolved(self):
         """Mark selected task(s) as resolved"""
